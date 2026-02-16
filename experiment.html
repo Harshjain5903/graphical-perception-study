@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graphical Perception Experiment</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        
+        #instructions {
+            display: block;
+        }
+        
+        #experiment {
+            display: none;
+        }
+        
+        #completion {
+            display: none;
+            text-align: center;
+        }
+        
+        #visualization {
+            min-height: 450px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        #prompt {
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+            color: #333;
+        }
+        
+        #progress {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        #slider {
+            width: 100%;
+            height: 40px;
+            margin: 10px 0;
+        }
+        
+        #slider-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2196F3;
+            text-align: center;
+            margin: 10px 0;
+        }
+        
+        button {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: block;
+            margin: 20px auto;
+        }
+        
+        button:hover {
+            background-color: #1976D2;
+        }
+        
+        input[type="text"] {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 200px;
+        }
+        
+        .highlight {
+            stroke: #ff4444 !important;
+            stroke-width: 3px !important;
+        }
+        
+        ul {
+            line-height: 1.8;
+        }
+    </style>
+</head>
+<body>
+    <!-- INSTRUCTIONS SCREEN -->
+    <div id="instructions" class="container">
+        <h1>Graphical Perception Study</h1>
+        
+        <h2>Welcome!</h2>
+        <p>Thank you for participating in this study on how people interpret data visualizations.</p>
+        
+        <h3>What You'll Do:</h3>
+        <ul>
+            <li>You'll see different types of charts</li>
+            <li>In each chart, <strong style="color: #ff4444;">two values will be highlighted in RED</strong></li>
+            <li>Your task: Estimate what percentage the <strong>smaller red value</strong> is of the <strong>larger red value</strong></li>
+            <li>Use the slider to enter your estimate (0-100%)</li>
+            <li>Click "Next" to continue</li>
+        </ul>
+        
+        <h3>Example:</h3>
+        <p>If one red bar is 80 units and another red bar is 40 units:<br>
+        The smaller is <strong>50%</strong> of the larger (because 40 ÷ 80 = 0.5 = 50%)</p>
+        
+        <h3>Important:</h3>
+        <ul>
+            <li>The experiment takes about <strong>12-15 minutes</strong></li>
+            <li>Please complete it in one sitting</li>
+            <li>Try to be as accurate as possible</li>
+            <li>Don't use a calculator</li>
+        </ul>
+        
+        <p><strong>Enter your participant ID:</strong></p>
+        <input type="text" id="participant-id" placeholder="e.g., P001">
+        
+        <button onclick="startExperiment()">Start Experiment</button>
+    </div>
+    
+    <!-- EXPERIMENT SCREEN -->
+    <div id="experiment" class="container">
+        <div id="progress"></div>
+        <div id="prompt">What percentage is the SMALLER red value of the LARGER red value?</div>
+        <div id="visualization"></div>
+        <div id="slider-value">50%</div>
+        <input type="range" id="slider" min="0" max="100" value="50" step="1">
+        <button id="next-button" onclick="nextTrial()">Next</button>
+    </div>
+    
+    <!-- COMPLETION SCREEN -->
+    <div id="completion" class="container">
+        <h1>✓ Experiment Complete!</h1>
+        <p>Thank you for your participation.</p>
+        <p>Please download your data file and email it to the researcher.</p>
+        <button onclick="downloadData()">Download Data (CSV)</button>
+    </div>
+
+    <script>
+        // ====================================
+        // EXPERIMENT CONFIGURATION
+        // ====================================
+        
+        // Participant info
+        let participantId = '';
+        
+        // All visualization types to test
+        const vizTypes = [
+            'aligned-bars',
+            'stacked-bars',
+            'pie-chart',
+            'circle-area',
+            'donut-chart',
+            'radial-position',
+            'color-saturation',
+            'line-length'
+        ];
+        
+        // Percentage ratios to test
+        const percentages = [14, 25, 38, 50, 62, 75, 86];
+        
+        // Trial storage
+        let trials = [];
+        let currentTrial = 0;
+        let results = [];
+        let startTime;
+        
+        // ====================================
+        // START EXPERIMENT
+        // ====================================
+        
+        function startExperiment() {
+            // Get participant ID
+            participantId = document.getElementById('participant-id').value.trim();
+            
+            if (!participantId) {
+                alert('Please enter a participant ID');
+                return;
+            }
+            
+            // Generate all trials
+            generateTrials();
+            
+            // Hide instructions, show experiment
+            document.getElementById('instructions').style.display = 'none';
+            document.getElementById('experiment').style.display = 'block';
+            
+            // Show first trial
+            showTrial();
+        }
+        
+        // ====================================
+        // GENERATE ALL TRIALS
+        // ====================================
+        
+        function generateTrials() {
+            trials = [];
+            
+            // Create one trial for each combination
+            for (let i = 0; i < vizTypes.length; i++) {
+                for (let j = 0; j < percentages.length; j++) {
+                    trials.push({
+                        vizType: vizTypes[i],
+                        percentage: percentages[j]
+                    });
+                }
+            }
+            
+            // Shuffle to randomize order
+            trials = d3.shuffle(trials);
+        }
+        
+        // ====================================
+        // SHOW CURRENT TRIAL
+        // ====================================
+        
+        function showTrial() {
+            const trial = trials[currentTrial];
+            
+            // Update progress display
+            document.getElementById('progress').textContent = 
+                `Trial ${currentTrial + 1} of ${trials.length}`;
+            
+            // Reset slider to 50%
+            document.getElementById('slider').value = 50;
+            document.getElementById('slider-value').textContent = '50%';
+            
+            // Clear previous visualization
+            d3.select('#visualization').html('');
+            
+            // Generate data for this trial
+            const data = generateData(trial.percentage);
+            
+            // Draw the appropriate visualization
+            drawVisualization(trial.vizType, data);
+            
+            // Record start time
+            startTime = Date.now();
+        }
+        
+        // ====================================
+        // GENERATE DATA FOR ONE TRIAL
+        // ====================================
+        
+        function generateData(percentage) {
+            // The larger marked value
+            const markedValue = 100;
+            
+            // The smaller marked value
+            const smallerValue = markedValue * (percentage / 100);
+            
+            // Start with the two marked values
+            let data = [markedValue, smallerValue];
+            
+            // Add 6 distractor values (random between 20-100)
+            for (let i = 0; i < 6; i++) {
+                data.push(20 + Math.random() * 80);
+            }
+            
+            // Shuffle so marked values aren't always first
+            data = d3.shuffle(data);
+            
+            // Find where the marked values ended up
+            const markedIndices = [
+                data.indexOf(markedValue),
+                data.indexOf(smallerValue)
+            ];
+            
+            return { values: data, markedIndices: markedIndices };
+        }
+        
+        // ====================================
+        // DRAW VISUALIZATION (ROUTER)
+        // ====================================
+        
+        function drawVisualization(vizType, data) {
+            // Call the appropriate drawing function
+            if (vizType === 'aligned-bars') {
+                drawAlignedBars(data);
+            } else if (vizType === 'stacked-bars') {
+                drawStackedBars(data);
+            } else if (vizType === 'pie-chart') {
+                drawPieChart(data);
+            } else if (vizType === 'circle-area') {
+                drawCircleArea(data);
+            } else if (vizType === 'donut-chart') {
+                drawDonutChart(data);
+            } else if (vizType === 'radial-position') {
+                drawRadialPosition(data);
+            } else if (vizType === 'color-saturation') {
+                drawColorSaturation(data);
+            } else if (vizType === 'line-length') {
+                drawLineLength(data);
+            }
+        }
+        
+        // ====================================
+        // VISUALIZATION 1: ALIGNED BARS
+        // ====================================
+        
+        function drawAlignedBars(data) {
+            const width = 700;
+            const height = 400;
+            const margin = { top: 20, right: 20, bottom: 40, left: 40 };
+            const chartWidth = width - margin.left - margin.right;
+            const chartHeight = height - margin.top - margin.bottom;
+            
+            const svg = d3.select('#visualization')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+            
+            // X scale (for bar positions)
+            const x = d3.scaleBand()
+                .domain(d3.range(data.values.length))
+                .range([0, chartWidth])
+                .padding(0.2);
+            
+            // Y scale (for bar heights)
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(data.values)])
+                .range([chartHeight, 0]);
+            
+            // Draw bars
+            g.selectAll('rect')
+                .data(data.values)
+                .enter()
+                .append('rect')
+                .attr('x', (d, i) => x(i))
+                .attr('y', d => y(d))
+                .attr('width', x.bandwidth())
+                .attr('height', d => chartHeight - y(d))
+                .attr('fill', '#4CAF50')
+                .attr('class', (d, i) => 
+                    data.markedIndices.includes(i) ? 'highlight' : '');
+        }
+        
+        // ====================================
+        // VISUALIZATION 2: STACKED BARS
+        // ====================================
+        
+        function drawStackedBars(data) {
+            const width = 700;
+            const height = 400;
+            const margin = { top: 20, right: 20, bottom: 40, left: 40 };
+            const chartWidth = width - margin.left - margin.right;
+            const chartHeight = height - margin.top - margin.bottom;
+            
+            const svg = d3.select('#visualization')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+            
+            // Calculate cumulative positions
+            let cumulative = 0;
+            const stackData = data.values.map(d => {
+                const start = cumulative;
+                cumulative += d;
+                return { value: d, start: start, end: cumulative };
+            });
+            
+            // Y scale
+            const y = d3.scaleLinear()
+                .domain([0, cumulative])
+                .range([chartHeight, 0]);
+            
+            // Draw stacked segments
+            g.selectAll('rect')
+                .data(stackData)
+                .enter()
+                .append('rect')
+                .attr('x', chartWidth / 3)
+                .attr('y', d => y(d.end))
+                .attr('width', chartWidth / 3)
+                .attr('height', d => y(d.start) - y(d.end))
+                .attr('fill', '#2196F3')
+                .attr('stroke', 'white')
+                .attr('stroke-width', 2)
+                .attr('class', (d, i) => 
+                    data.markedIndices.includes(i) ? 'highlight' : '');
+        }
+        
+        // ====================================
+        // VISUALIZATION 3: PIE CHART
+        // ====================================
+        
+        function drawPieChart(data) {
+            const width = 700;
+            const height = 400;
+            const radius = Math.min(width, height) / 2 - 40;
+            
+            const svg = d3.select('#visualization')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${width / 2},${height / 2})`);
+            
+            // Pie layout
+            const pie = d3.pie().value(d => d);
+            
+            // Arc generator
+            const arc = d3.arc()
+                .innerRadius(0)
+                .outerRadius(radius);
+            
+            // Draw slices
+            g.selectAll('path')
+                .data(pie(data.values))
+                .enter()
+                .append('path')
+                .attr('d', arc)
+                .attr('fill', (d, i) => d3.schemeSet3[i % 12])
+                .attr('stroke', 'white')
+                .attr('stroke-width', 2)
+                .attr('class', (d, i) => 
+                    data.markedIndices.includes(i) ? 'highlight' : '');
+        }
+        
+        // ====================================
+        // VISUALIZATION 4: CIRCLE AREA
+        // ====================================
+        
+        function drawCircleArea(data) {
+            const width = 700;
+            const height = 400;
+            const margin = 40;
+            
+            const svg = d3.select('#visualization')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            // Scale for circle radius
+            const maxRadius = 50;
+            const radiusScale = d3.scaleSqrt()
+                .domain([0, d3.max(data.values)])
+                .range([0, maxRadius]);
+            
+            // Calculate grid positions
+            const cols = Math.ceil(Math.sqrt(data.values.length));
+            const spacing = (width - 2 * margin) / cols;
+            
+            // Draw circles
+            svg.selectAll('circle')
+                .data(data.values)
+                .enter()
+                .append('circle')
+                .attr('cx', (d, i) => margin + (i % cols) * spacing + spacing / 2)
+                .attr('cy', (d, i) => margin + Math.floor(i / cols) * spacing + spacing / 2)
+                .attr('r', d => radiusScale(d))
+                .attr('fill', '#FF9800')
+                .attr('opacity', 0.7)
+                .attr('class', (d, i) => 
+                    data.markedIndices.includes(i) ? 'highlight' : '');
+        }
+        
+        // ====================================
+        // VISUALIZATION 5: DONUT CHART
+        // ====================================
+        
+        function drawDonutChart(data) {
+            const width = 700;
+            const height = 400;
+            const radius = Math.min(width, height) / 2 - 40;
+            const innerRadius = radius * 0.5; // 50% of outer radius
+            
+            const svg = d3.select('#visualization')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${width / 2},${height / 2})`);
+            
+            // Pie layout
+            const pie = d3.pie().value(d => d);
+            
+            // Arc generator with inner radius
+            const arc = d3.arc()
+                .innerRadius(innerRadius)
+                .outerRadius(radius);
+            
+            // Draw slices
+            g.selectAll('path')
+                .data(pie(data.values))
+                .enter()
+                .append('path')
+                .attr('d', arc)
+                .attr('fill', (d, i) => d3.schemeSet3[i % 12])
+                .attr('stroke', 'white')
+                .attr('stroke-width', 2)
+                .attr('class', (d, i) => 
+                    data.markedIndices.includes(i) ? 'highlight' : '');
+        }
+        
+        // ====================================
+        // VISUALIZATION 6: RADIAL POSITION
+        // ====================================
+        
+        function drawRadialPosition(data) {
+            const width = 700;
+            const height = 400;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const maxRadius = 150;
+            
+            const svg = d3.select('#visualization')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            // Scale for bar length
+            const lengthScale = d3.scaleLinear()
+                .domain([0, d3.max(data.values)])
+                .range([0, maxRadius]);
+            
+            // Angle between bars
+            const angleStep = (2 * Math.PI) / data.values.length;
+            
+            // Draw center point
+            svg.append('circle')
+                .attr('cx', centerX)
+                .attr('cy', centerY)
+                .attr('r', 5)
+                .attr('fill', '#666');
+            
+            // Draw each bar
+            data.values.forEach((value, i) => {
+                const angle = i * angleStep - Math.PI / 2; // Start at top
+                const length = lengthScale(value);
+                
+                // End point of bar
+                const x2 = centerX + length * Math.cos(angle);
+                const y2 = centerY + length * Math.sin(angle);
+                
+                const isMarked = data.markedIndices.includes(i);
+                
+                // Draw bar as thick line
+                svg.append('line')
+                    .attr('x1', centerX)
+                    .attr('y1', centerY)
+                    .attr('x2', x2)
+                    .attr('y2', y2)
+                    .attr('stroke', isMarked ? '#ff4444' : '#4CAF50')
+                    .attr('stroke-width', 15)
+                    .attr('stroke-linecap', 'round');
+            });
+        }
+        
+        // ====================================
+        // VISUALIZATION 7: COLOR SATURATION
+        // ====================================
+        
+        function drawColorSaturation(data) {
+            const width = 700;
+            const height = 400;
+            const margin = { top: 20, right: 20, bottom: 40, left: 40 };
+            const chartWidth = width - margin.left - margin.right;
+            const chartHeight = height - margin.top - margin.bottom;
+            
+            const svg = d3.select('#visualization')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+            
+            // X scale
+            const x = d3.scaleBand()
+                .domain(d3.range(data.values.length))
+                .range([0, chartWidth])
+                .padding(0.2);
+            
+            // Color scale (from light to dark blue)
+            const colorScale = d3.scaleLinear()
+                .domain([0, d3.max(data.values)])
+                .range(['#E3F2FD', '#0D47A1']); // Light blue to dark blue
+            
+            // Draw rectangles with varying saturation
+            g.selectAll('rect')
+                .data(data.values)
+                .enter()
+                .append('rect')
+                .attr('x', (d, i) => x(i))
+                .attr('y', 0)
+                .attr('width', x.bandwidth())
+                .attr('height', chartHeight)
+                .attr('fill', d => colorScale(d))
+                .attr('class', (d, i) => 
+                    data.markedIndices.includes(i) ? 'highlight' : '');
+        }
+        
+        // ====================================
+        // VISUALIZATION 8: LINE LENGTH
+        // ====================================
+        
+        function drawLineLength(data) {
+            const width = 700;
+            const height = 400;
+            const margin = 40;
+            
+            const svg = d3.select('#visualization')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            // Scale for line length
+            const lengthScale = d3.scaleLinear()
+                .domain([0, d3.max(data.values)])
+                .range([0, width - 2 * margin]);
+            
+            // Vertical spacing
+            const ySpacing = (height - 2 * margin) / data.values.length;
+            
+            // Draw lines
+            data.values.forEach((value, i) => {
+                const y = margin + i * ySpacing + ySpacing / 2;
+                const lineLength = lengthScale(value);
+                const isMarked = data.markedIndices.includes(i);
+                
+                svg.append('line')
+                    .attr('x1', margin)
+                    .attr('y1', y)
+                    .attr('x2', margin + lineLength)
+                    .attr('y2', y)
+                    .attr('stroke', isMarked ? '#ff4444' : '#9C27B0')
+                    .attr('stroke-width', 8)
+                    .attr('stroke-linecap', 'round');
+            });
+        }
+        
+        // ====================================
+        // UPDATE SLIDER DISPLAY
+        // ====================================
+        
+        document.getElementById('slider').addEventListener('input', function() {
+            document.getElementById('slider-value').textContent = this.value + '%';
+        });
+        
+        // ====================================
+        // NEXT TRIAL
+        // ====================================
+        
+        function nextTrial() {
+            const trial = trials[currentTrial];
+            const response = parseInt(document.getElementById('slider').value);
+            const responseTime = Date.now() - startTime;
+            
+            // Save this trial's data
+            results.push({
+                participantId: participantId,
+                trialNumber: currentTrial + 1,
+                vizType: trial.vizType,
+                groundTruth: trial.percentage,
+                response: response,
+                responseTime: responseTime
+            });
+            
+            // Move to next trial
+            currentTrial++;
+            
+            // Check if experiment is done
+            if (currentTrial < trials.length) {
+                showTrial();
+            } else {
+                finishExperiment();
+            }
+        }
+        
+        // ====================================
+        // FINISH EXPERIMENT
+        // ====================================
+        
+        function finishExperiment() {
+            document.getElementById('experiment').style.display = 'none';
+            document.getElementById('completion').style.display = 'block';
+        }
+        
+        // ====================================
+        // DOWNLOAD DATA AS CSV
+        // ====================================
+        
+        function downloadData() {
+            // Create CSV header
+            const headers = ['participantId', 'trialNumber', 'vizType', 'groundTruth', 'response', 'responseTime'];
+            let csv = headers.join(',') + '\n';
+            
+            // Add each result as a row
+            results.forEach(result => {
+                const row = [
+                    result.participantId,
+                    result.trialNumber,
+                    result.vizType,
+                    result.groundTruth,
+                    result.response,
+                    result.responseTime
+                ];
+                csv += row.join(',') + '\n';
+            });
+            
+            // Create download
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `graphical_perception_${participantId}_${Date.now()}.csv`;
+            a.click();
+        }
+    </script>
+</body>
+</html>
