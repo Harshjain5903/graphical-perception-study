@@ -5,39 +5,150 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>CS 526 – Graphical Perception Experiment</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
+
   <style>
     :root{
       --bg:#f6f6f6; --card:#fff; --text:#222; --muted:#666;
       --accent:#1f77b4; --highlight:#d62728; --border:#ddd;
+      --targetFill1:#ffd54f;  /* target A (larger=100) */
+      --targetFill2:#80deea;  /* target B (smaller=ratio) */
     }
-    body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text);}
-    .wrap{max-width:920px;margin:0 auto;padding:22px;}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px;box-shadow:0 1px 2px rgba(0,0,0,0.04);}
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+
+    body{
+      margin:0;
+      font-family:Arial,Helvetica,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      overflow-x:hidden;
+    }
+
+    .wrap{ max-width:920px; margin:0 auto; padding:22px; }
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:18px;
+      box-shadow:0 1px 2px rgba(0,0,0,0.04);
+    }
+
     h1{font-size:20px;margin:0 0 10px;}
     h2{font-size:16px;margin:16px 0 10px;}
     p,li{line-height:1.45;}
     .muted{color:var(--muted);}
+
     .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
-    button{padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--accent);color:#fff;font-size:14px;cursor:pointer;}
-    button:disabled{opacity:.6;cursor:not-allowed;}
-    .topbar{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
-    #viz{display:flex;justify-content:center;align-items:center;margin:14px 0 12px;min-height:420px;}
-    #prompt{font-size:16px;font-weight:700;text-align:center;margin:0;}
-    .sliderRow{display:grid;grid-template-columns:1fr;gap:8px;margin-top:14px;}
-    #sliderValue{font-size:18px;font-weight:700;text-align:center;color:var(--accent);}
-    input[type="range"]{width:100%;}
-    .hr{height:1px;background:var(--border);margin:14px 0;}
-    .tag{display:inline-block;padding:3px 8px;border:1px solid var(--border);border-radius:999px;font-size:12px;color:var(--muted);background:#fafafa;}
-    .contactBox{
-      margin-top:12px;
-      padding:10px 12px;
+
+    button{
+      padding:10px 14px;
       border:1px solid var(--border);
-      border-radius:10px;
-      background:#fafafa;
+      border-radius:8px;
+      background:var(--accent);
+      color:#fff;
+      font-size:14px;
+      cursor:pointer;
+      width:100%;
     }
-    .contactBox b{color:#111;}
-    .contactBox a{color:var(--accent);text-decoration:none;}
-    .contactBox a:hover{text-decoration:underline;}
+    button:disabled{opacity:.6;cursor:not-allowed;}
+
+    .topbar{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-bottom:10px;
+    }
+
+    .tag{
+      display:inline-block;
+      padding:3px 8px;
+      border:1px solid var(--border);
+      border-radius:999px;
+      font-size:12px;
+      color:var(--muted);
+      background:#fafafa;
+      margin:2px 6px 2px 0;
+      white-space:nowrap;
+    }
+
+    #prompt{
+      font-size:16px;
+      font-weight:700;
+      text-align:center;
+      margin:0;
+      padding:6px 0 2px;
+    }
+
+    #viz{
+      width:100%;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      margin:12px 0 10px;
+      overflow:hidden;
+    }
+
+    #viz svg{
+      width:100%;
+      height:auto;
+      max-width:700px;
+      display:block;
+      overflow:visible;
+    }
+
+    .sliderRow{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:10px;
+      margin-top:14px;
+    }
+
+    #sliderValue{
+      font-size:18px;
+      font-weight:700;
+      text-align:center;
+      color:var(--accent);
+    }
+
+    input[type="range"]{width:100%;}
+
+    .miniNote{
+      font-size:12px;
+      color:var(--muted);
+      text-align:center;
+      margin-top:-6px;
+    }
+
+    .warn{
+      font-size:12px;
+      color:#8a2d2d;
+      text-align:center;
+      margin-top:-6px;
+      display:none;
+    }
+
+    .ok{
+      font-size:12px;
+      color:#1f6f2a;
+      text-align:center;
+      margin-top:-6px;
+      display:none;
+    }
+
+    .hr{height:1px;background:var(--border);margin:14px 0;}
+
+    @media (min-width: 560px){ button{ width:auto; } }
+
+    @media (max-width: 480px){
+      .wrap{ padding:12px; }
+      .card{ padding:14px; }
+      #prompt{ font-size:15px; }
+      #sliderValue{ font-size:18px; }
+      .tag{ font-size:11px; }
+    }
   </style>
 </head>
 
@@ -49,7 +160,7 @@
       <p class="muted">
         You will see one visualization at a time. Two data values will be highlighted.
         Your task: estimate <b>what percentage the lower highlighted value is of the higher highlighted value</b>
-        based on <b>how that visualization encodes value</b> (length, area, angle, color intensity, etc.).
+        based on <b>how that visualization encodes value</b>.
       </p>
 
       <h2>Instructions</h2>
@@ -57,7 +168,7 @@
         <li>Look for the two highlighted marks (outlined clearly).</li>
         <li>Use the slider to enter your percentage estimate (0–100%).</li>
         <li>Click <b>Next</b> to continue.</li>
-        <li>At the end, download your data as one CSV file.</li>
+        <li>Your responses will be saved automatically.</li>
       </ul>
 
       <div class="hr"></div>
@@ -84,42 +195,50 @@
       </div>
 
       <p id="prompt">—</p>
-
       <div id="viz"></div>
 
       <div class="sliderRow">
-        <div id="sliderValue">50%</div>
+        <div id="sliderValue">—</div>
         <input id="slider" type="range" min="0" max="100" value="50" step="1" />
-        <button id="btnNext">Next</button>
+        <div class="miniNote" id="mustMoveNote">Move the slider (even slightly) to enable Next.</div>
+        <div class="warn" id="fastWarn">Please take a moment to estimate before continuing.</div>
+        <div class="ok" id="saveOk">Saved.</div>
+        <button id="btnNext" disabled>Next</button>
       </div>
     </div>
 
     <div class="card" id="screenDone" style="display:none;">
       <h1>Done</h1>
-      <p class="muted">
-        Thank you for participating. Click the button to download your CSV.
-      </p>
+      <p class="muted">Thank you for participating. Your responses have been saved.</p>
 
-      <button id="btnDownload">Download CSV</button>
-
-      <div class="contactBox">
-        <div class="muted" style="margin-bottom:6px;">
-          Please send your downloaded CSV file to:
-        </div>
-        <div>
-          <b>Email:</b> <a href="mailto:hjain29@uic.edu">hjain29@uic.edu</a>
-        </div>
-        <div style="margin-top:6px;">
-          <b>WhatsApp:</b> <a href="https://wa.me/17739091298" target="_blank" rel="noopener">+1 773 909 1298</a>
-        </div>
-        <div class="muted" style="margin-top:10px;">
-          Thank you for taking the CS 526 graphical perception study.
-        </div>
-      </div>
+      <button id="btnDownload">Download CSV (optional)</button>
     </div>
   </div>
 
 <script>
+/* --------------------------- Backend (Google Sheet) --------------------------- */
+/* Your deployed Apps Script Web App URL + token */
+const SHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycby3Q_YVRdJUpY6RyUtraMzD2Nd4scwf92keU6SfkMK9TTBGJlo7Zr1AKTCIEuJ9_JWvuw/exec";
+const SHEET_SECRET_TOKEN = "cs526_8f3k2p9q";
+
+/* We append rows only once at the end (simplest). If you want, you can autosave every N trials. */
+async function postRowsToSheet(rows){
+  const payload = { token: SHEET_SECRET_TOKEN, rows };
+
+  // Apps Script often blocks CORS reads; no-cors still sends the request successfully.
+  try{
+    await fetch(SHEET_WEBAPP_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+
 /* --------------------------- Study design --------------------------- */
 
 const VIZ_TYPES = [
@@ -128,7 +247,7 @@ const VIZ_TYPES = [
   { id: "pie",           label: "Pie Chart (angle)",                            source: "Cleveland & McGill" },
   { id: "circleArea",    label: "Circle Area (area)",                           source: "Heer & Bostock" },
   { id: "donut",         label: "Donut Chart (angle + inner radius)",           source: "Novel" },
-  { id: "saturation",    label: "Color Saturation (intensity encoding)",        source: "Novel" },
+  { id: "saturation",    label: "Color Saturation (darkness encoding)",         source: "Novel" },
   { id: "radialBars",    label: "Radial Bars (position on circular axis)",      source: "Novel" },
   { id: "starArea",      label: "Star Glyphs (irregular shape area encoding)",  source: "Novel" }
 ];
@@ -139,9 +258,24 @@ const DISTRACTOR_COUNT = 6;
 const DISTRACTOR_MIN = 15;
 const DISTRACTOR_MAX = 95;
 
-/* Highlight styling (reduced thickness to avoid “too much” halo) */
-const HALO_WHITE_W = 6;
-const HALO_RED_W   = 3;
+/* Highlight: slightly stronger halo + thicker target outline */
+const HALO_WHITE_W = 5;           // CHANGED: slightly stronger halo (was 4)
+const HALO_RED_W   = 2.8;         // CHANGED: thicker red outline (was 2 / 2.4)
+const HALO_PAD = 3;               // draw halo slightly OUTSIDE marks (prevents covering the mark)
+
+const PIE_SEP_W = 2.2;
+const PIE_SEP_W_T = 2.8;
+
+const STACK_SEP_W = 1.6;
+const STACK_SEP_W_T = 2.4;
+
+/* Anti-spam / engagement (prevents Next-next-next) */
+const MIN_TRIAL_TIME_MS = 650;   // require at least ~0.65s on each trial
+const REQUIRE_SLIDER_MOVE = true;
+
+/* Base design size; SVG is responsive via viewBox */
+const BASE_W = 700;
+const BASE_H = 420;
 
 /* --------------------------- UI references -------------------------- */
 
@@ -155,6 +289,9 @@ const btnDownload = document.getElementById("btnDownload");
 
 const slider = document.getElementById("slider");
 const sliderValue = document.getElementById("sliderValue");
+const mustMoveNote = document.getElementById("mustMoveNote");
+const fastWarn = document.getElementById("fastWarn");
+const saveOk = document.getElementById("saveOk");
 
 const progressTag = document.getElementById("progressTag");
 const blockTag = document.getElementById("blockTag");
@@ -174,6 +311,12 @@ let trialIndex = 0;
 let trialStartMs = 0;
 let results = [];
 
+let currentTrialData = null;
+
+/* slider gating state */
+let sliderMovedThisTrial = false;
+let sliderStartValueThisTrial = 50;
+
 /* --------------------------- Helpers -------------------------------- */
 
 function shuffle(arr) {
@@ -185,16 +328,11 @@ function shuffle(arr) {
   return a;
 }
 
-function randInRange(min, max) {
-  return min + Math.random() * (max - min);
-}
+function randInRange(min, max) { return min + Math.random() * (max - min); }
 
 function makeDistractors() {
   const vals = [];
-  while (vals.length < DISTRACTOR_COUNT) {
-    const v = Math.round(randInRange(DISTRACTOR_MIN, DISTRACTOR_MAX));
-    vals.push(v);
-  }
+  while (vals.length < DISTRACTOR_COUNT) vals.push(Math.round(randInRange(DISTRACTOR_MIN, DISTRACTOR_MAX)));
   return vals;
 }
 
@@ -206,32 +344,29 @@ function clampInt(x, lo, hi) {
 
 function csvEscape(value) {
   const s = String(value);
-  if (s.includes(",") || s.includes('"') || s.includes("\n")) {
-    return '"' + s.replaceAll('"', '""') + '"';
-  }
+  if (s.includes(",") || s.includes('"') || s.includes("\n")) return '"' + s.replaceAll('"', '""') + '"';
   return s;
 }
 
-function isTarget(i, targetIdx) {
-  return i === targetIdx[0] || i === targetIdx[1];
+function isTarget(i, targetIdx) { return i === targetIdx[0] || i === targetIdx[1]; }
+
+function cssVar(name, fallback){
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
 }
 
-/* ------------------ Prompt & hint text (saturation + star) ---------- */
+/* ------------------ Prompt & hint text ----------------- */
 
 function getPromptForViz(vizId) {
   if (vizId === "saturation") {
-    return "What percentage is the LIGHTER highlighted value of the DARKER highlighted value? (Darker = larger)";
+    return "Ignore size. Estimate the LIGHTER highlighted box as a percent of the DARKER highlighted box.";
   }
   return "What percentage is the smaller highlighted value of the larger highlighted value?";
 }
 
 function getHintForViz(vizId) {
-  if (vizId === "saturation") {
-    return "Value is encoded by color intensity: darker = larger, lighter = smaller. Targets are outlined.";
-  }
-  if (vizId === "starArea") {
-    return "Value is encoded by filled star area: larger filled star = larger value. Targets are outlined.";
-  }
+  if (vizId === "saturation") return "Ignore size — compare only the darkness of the two highlighted boxes.";
+  if (vizId === "starArea")   return "Compare the filled star sizes (bigger filled star means bigger value).";
   return "Two highlighted values are outlined.";
 }
 
@@ -252,16 +387,11 @@ function getUniqueParticipantId() {
   try {
     used = JSON.parse(localStorage.getItem(key) || "[]");
     if (!Array.isArray(used)) used = [];
-  } catch {
-    used = [];
-  }
+  } catch { used = []; }
 
   let pid = generateParticipantId();
   let tries = 0;
-  while (used.includes(pid) && tries < 20) {
-    pid = generateParticipantId();
-    tries += 1;
-  }
+  while (used.includes(pid) && tries < 20) { pid = generateParticipantId(); tries += 1; }
 
   used.push(pid);
   if (used.length > 1000) used = used.slice(-1000);
@@ -273,20 +403,13 @@ function getUniqueParticipantId() {
 
 function buildTrials() {
   const blockOrder = shuffle(VIZ_TYPES.map(v => v.id));
-
   const all = [];
   blockOrder.forEach((vizId, bIdx) => {
     const ratioOrder = shuffle(RATIOS);
     ratioOrder.forEach((ratioPct, tIdxInBlock) => {
-      all.push({
-        vizId,
-        blockNumber: bIdx + 1,
-        trialInBlock: tIdxInBlock + 1,
-        groundTruthPct: ratioPct
-      });
+      all.push({ vizId, blockNumber: bIdx + 1, trialInBlock: tIdxInBlock + 1, groundTruthPct: ratioPct });
     });
   });
-
   return all;
 }
 
@@ -295,76 +418,104 @@ function buildTrials() {
 function makeTrialData(groundTruthPct) {
   const larger = 100;
   const smaller = groundTruthPct;
-
   const distractors = makeDistractors();
   const values = shuffle([larger, smaller, ...distractors]);
-
   const idxL = values.indexOf(larger);
   const idxS = values.indexOf(smaller);
-
   return { larger, smaller, values, targetIdx: [idxL, idxS] };
 }
 
 /* --------------------------- Rendering helpers ---------------------- */
 
-function clearViz() {
-  d3.select("#viz").html("");
-}
+function clearViz() { d3.select("#viz").html(""); }
 
-function makeSvg(width, height) {
+function makeSvgResponsive() {
   const svg = d3.select("#viz")
     .append("svg")
-    .attr("width", width)
-    .attr("height", height);
+    .attr("viewBox", `0 0 ${BASE_W} ${BASE_H}`)
+    .attr("preserveAspectRatio", "xMidYMid meet");
 
   const defs = svg.append("defs");
   const f = defs.append("filter")
     .attr("id", "haloShadow")
-    .attr("x", "-30%").attr("y", "-30%")
-    .attr("width", "160%").attr("height", "160%");
+    .attr("x", "-40%").attr("y", "-40%")
+    .attr("width", "180%").attr("height", "180%");
   f.append("feDropShadow")
     .attr("dx", 0).attr("dy", 1)
-    .attr("stdDeviation", 0.7)
+    .attr("stdDeviation", 1.0)
     .attr("flood-color", "#000")
-    .attr("flood-opacity", 0.22);
+    .attr("flood-opacity", 0.20);
 
   return svg;
 }
 
-function highlightColor() {
-  return getComputedStyle(document.documentElement).getPropertyValue("--highlight").trim() || "#d62728";
+function highlightColor() { return cssVar("--highlight", "#d62728"); }
+function targetFillA()    { return cssVar("--targetFill1", "#ffd54f"); }
+function targetFillB()    { return cssVar("--targetFill2", "#80deea"); }
+
+function targetFillForIndex(i, targetIdx){
+  if (i === targetIdx[0]) return targetFillA();
+  if (i === targetIdx[1]) return targetFillB();
+  return null;
 }
 
-/* Stroke-only overlays so the data marks themselves are unchanged */
-function addHaloRect(g, x, y, w, h, rx=2, ry=2) {
-  const common = {
-    "pointer-events": "none",
-    "vector-effect": "non-scaling-stroke"
-  };
+function haloWidthsForRect(w, h){
+  const m = Math.max(1, Math.min(w, h));
+  const white = Math.min(HALO_WHITE_W, Math.max(3, m * 0.18));
+  const red   = Math.min(HALO_RED_W,   Math.max(1.6, m * 0.10));
+  return { white, red };
+}
+
+/* OUTSIDE halos: expand the rect so stroke doesn't sit on top of the mark */
+function addHaloRectOutside(g, x, y, w, h, rx=2, ry=2) {
+  const { white, red } = haloWidthsForRect(w, h);
+  const common = { "pointer-events":"none", "vector-effect":"non-scaling-stroke" };
+
+  const xx = x - HALO_PAD;
+  const yy = y - HALO_PAD;
+  const ww = w + 2*HALO_PAD;
+  const hh = h + 2*HALO_PAD;
 
   g.append("rect")
-    .attr("x", x).attr("y", y).attr("width", w).attr("height", h)
-    .attr("rx", rx).attr("ry", ry)
+    .attr("x", xx).attr("y", yy).attr("width", ww).attr("height", hh)
+    .attr("rx", rx + HALO_PAD).attr("ry", ry + HALO_PAD)
     .attr("fill", "none")
     .attr("stroke", "#ffffff")
-    .attr("stroke-width", HALO_WHITE_W)
+    .attr("stroke-width", white)
     .attr("filter", "url(#haloShadow)")
     .attr(common);
 
   g.append("rect")
-    .attr("x", x).attr("y", y).attr("width", w).attr("height", h)
-    .attr("rx", rx).attr("ry", ry)
+    .attr("x", xx).attr("y", yy).attr("width", ww).attr("height", hh)
+    .attr("rx", rx + HALO_PAD).attr("ry", ry + HALO_PAD)
     .attr("fill", "none")
+    .attr("stroke", highlightColor())
+    .attr("stroke-width", red)
+    .attr(common);
+}
+
+function addHaloCircleOutside(g, cx, cy, r) {
+  const common = { "pointer-events":"none", "vector-effect":"non-scaling-stroke" };
+  const rr = r + HALO_PAD;
+
+  g.append("circle")
+    .attr("cx", cx).attr("cy", cy).attr("r", rr)
+    .attr("fill","none")
+    .attr("stroke","#fff")
+    .attr("stroke-width", HALO_WHITE_W)
+    .attr("filter","url(#haloShadow)")
+    .attr(common);
+
+  g.append("circle")
+    .attr("cx", cx).attr("cy", cy).attr("r", rr)
+    .attr("fill","none")
     .attr("stroke", highlightColor())
     .attr("stroke-width", HALO_RED_W)
     .attr(common);
 }
 
 function addHaloPath(g, d) {
-  const common = {
-    "pointer-events": "none",
-    "vector-effect": "non-scaling-stroke"
-  };
+  const common = { "pointer-events": "none", "vector-effect": "non-scaling-stroke" };
 
   g.append("path")
     .attr("d", d)
@@ -386,15 +537,60 @@ function addHaloPath(g, d) {
     .attr(common);
 }
 
+/* ---------------------- Random (natural) placement ---------------------- */
+/* Places glyphs in the available area with simple rejection sampling */
+function placePointsRandom(n, bounds, radii, pad=10, maxTries=2000) {
+  const pts = [];
+  let tries = 0;
+
+  function ok(x,y,r){
+    if (x - r < bounds.x0 || x + r > bounds.x1 || y - r < bounds.y0 || y + r > bounds.y1) return false;
+    for (let i=0;i<pts.length;i++){
+      const p = pts[i];
+      const rr = (p.r + r + pad);
+      const dx = p.x - x, dy = p.y - y;
+      if (dx*dx + dy*dy < rr*rr) return false;
+    }
+    return true;
+  }
+
+  const order = d3.range(n).sort((a,b) => radii[b]-radii[a]);
+
+  for (const idx of order) {
+    const r = radii[idx];
+    let placed = false;
+
+    while (!placed && tries < maxTries) {
+      tries++;
+      const x = randInRange(bounds.x0 + r, bounds.x1 - r);
+      const y = randInRange(bounds.y0 + r, bounds.y1 - r);
+      if (ok(x,y,r)) {
+        pts.push({ idx, x, y, r });
+        placed = true;
+      }
+    }
+
+    if (!placed) {
+      const t = pts.length / Math.max(1, n-1);
+      const x = bounds.x0 + r + t*(bounds.x1 - bounds.x0 - 2*r);
+      const y = bounds.y0 + r + (0.5 + 0.25*Math.sin(t*6.28))*(bounds.y1 - bounds.y0 - 2*r);
+      pts.push({ idx, x, y, r });
+    }
+  }
+
+  const out = new Array(n);
+  pts.forEach(p => out[p.idx] = { x:p.x, y:p.y, r:p.r });
+  return out;
+}
+
 /* --------------------------- Visualizations ------------------------- */
 
-/* ---- 1) Aligned bars ---- */
+/* 1) Aligned bars */
 function drawAlignedBars(svg, data) {
-  const W = +svg.attr("width"), H = +svg.attr("height");
-  const margin = { top: 20, right: 20, bottom: 30, left: 30 };
+  const W = BASE_W, H = BASE_H;
+  const margin = { top: 24, right: 24, bottom: 34, left: 34 };
   const innerW = W - margin.left - margin.right;
   const innerH = H - margin.top - margin.bottom;
-
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
   const x = d3.scaleBand().domain(d3.range(data.values.length)).range([0, innerW]).padding(0.2);
@@ -414,7 +610,7 @@ function drawAlignedBars(svg, data) {
   bars.each(function(_, i) {
     if (!isTarget(i, data.targetIdx)) return;
     const r = d3.select(this);
-    addHaloRect(g, +r.attr("x"), +r.attr("y"), +r.attr("width"), +r.attr("height"), 2, 2);
+    addHaloRectOutside(g, +r.attr("x"), +r.attr("y"), +r.attr("width"), +r.attr("height"), 2, 2);
   });
 
   g.append("line")
@@ -423,10 +619,10 @@ function drawAlignedBars(svg, data) {
     .attr("stroke", "#bbb");
 }
 
-/* ---- 2) Stacked bars ---- */
+/* 2) Stacked bars */
 function drawStackedBars(svg, data) {
-  const W = +svg.attr("width"), H = +svg.attr("height");
-  const margin = { top: 20, right: 20, bottom: 20, left: 20 };
+  const W = BASE_W, H = BASE_H;
+  const margin = { top: 24, right: 24, bottom: 24, left: 24 };
 
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
   const innerW = W - margin.left - margin.right;
@@ -438,39 +634,43 @@ function drawStackedBars(svg, data) {
   const barX = innerW * 0.35;
   const barW = innerW * 0.30;
 
+  const baseFill = "#ff7f0e";
+
   let cum = 0;
   data.values.forEach((v, i) => {
     const y0 = y(cum);
     const y1 = y(cum + v);
+    const h = Math.max(0, y0 - y1);
+
+    const isT = isTarget(i, data.targetIdx);
+    const fill = isT ? targetFillForIndex(i, data.targetIdx) : baseFill;
 
     g.append("rect")
       .attr("x", barX)
       .attr("y", y1)
       .attr("width", barW)
-      .attr("height", y0 - y1)
-      .attr("fill", "#ff7f0e")
-      .attr("opacity", 0.85)
+      .attr("height", h)
+      .attr("fill", fill)
+      .attr("opacity", isT ? 0.95 : 0.80)
       .attr("stroke", "#fff")
-      .attr("stroke-width", 1);
+      .attr("stroke-width", isT ? STACK_SEP_W_T : STACK_SEP_W);
 
-    if (isTarget(i, data.targetIdx)) {
-      addHaloRect(g, barX, y1, barW, (y0 - y1), 2, 2);
-    }
+    if (isT) addHaloRectOutside(g, barX, y1, barW, h, 3, 3);
 
     cum += v;
   });
 }
 
-/* ---- 3) Pie / Donut ---- */
+/* 3) Pie/Donut */
 function drawPie(svg, data, isDonut) {
-  const W = +svg.attr("width"), H = +svg.attr("height");
+  const W = BASE_W, H = BASE_H;
 
-  const radius = Math.min(W, H) * 0.35;
-  const innerR = isDonut ? radius * 0.45 : 0;
+  const radius = Math.min(W, H) * 0.36;
+  const innerR = isDonut ? radius * 0.48 : 0;
 
   const g = svg.append("g").attr("transform", `translate(${W/2},${H/2})`);
 
-  const pie = d3.pie().value(d => d);
+  const pie = d3.pie().value(d => d).sort(null);
   const arcs = pie(data.values);
 
   const arc = d3.arc().innerRadius(innerR).outerRadius(radius);
@@ -481,10 +681,13 @@ function drawPie(svg, data, isDonut) {
     .append("path")
     .attr("class", "slice")
     .attr("d", arc)
-    .attr("fill", (_, i) => d3.schemeCategory10[i % 10])
-    .attr("opacity", 0.9)
+    .attr("fill", (a, i) => {
+      const tf = targetFillForIndex(i, data.targetIdx);
+      return tf ? tf : d3.schemeCategory10[i % 10];
+    })
+    .attr("opacity", (a, i) => isTarget(i, data.targetIdx) ? 0.98 : 0.92)
     .attr("stroke", "#fff")
-    .attr("stroke-width", 2);
+    .attr("stroke-width", (a, i) => isTarget(i, data.targetIdx) ? PIE_SEP_W_T : PIE_SEP_W);
 
   arcs.forEach((a, i) => {
     if (!isTarget(i, data.targetIdx)) return;
@@ -492,48 +695,41 @@ function drawPie(svg, data, isDonut) {
   });
 }
 
-/* ---- 4) Circle Area ---- */
+/* 4) Circle Area */
 function drawCircleArea(svg, data) {
-  const W = +svg.attr("width"), H = +svg.attr("height");
-  const margin = 30;
+  const W = BASE_W, H = BASE_H;
 
-  const maxR = 58;
-  const r = d3.scaleSqrt().domain([0, d3.max(data.values)]).range([0, maxR]);
+  const maxR = Math.min(W, H) * 0.11;
+  const r = d3.scaleSqrt().domain([0, d3.max(data.values)]).range([10, maxR]);
 
-  const cols = 4;
-  const cellW = (W - 2 * margin) / cols;
-  const cellH = (H - 2 * margin) / 2;
+  const radii = data.values.map(v => r(v));
 
-  const g = svg.append("g").attr("transform", `translate(${margin},${margin})`);
+  const bounds = { x0: 70, y0: 70, x1: W-70, y1: H-70 };
+  const pts = placePointsRandom(data.values.length, bounds, radii, 18, 3000);
 
-  g.selectAll("circle")
+  const g = svg.append("g");
+
+  g.selectAll("circle.mark")
     .data(data.values)
     .enter()
     .append("circle")
-    .attr("cx", (_, i) => (i % cols) * cellW + cellW / 2)
-    .attr("cy", (_, i) => Math.floor(i / cols) * cellH + cellH / 2)
-    .attr("r", d => r(d))
+    .attr("class","mark")
+    .attr("cx", (_, i) => pts[i].x)
+    .attr("cy", (_, i) => pts[i].y)
+    .attr("r",  (_, i) => pts[i].r)
     .attr("fill", "#2ca02c")
     .attr("opacity", 0.55)
     .each(function(_, i){
       if (!isTarget(i, data.targetIdx)) return;
       const c = d3.select(this);
-      const cx = +c.attr("cx"), cy = +c.attr("cy"), rr = +c.attr("r");
-      const gg = g.append("g").attr("pointer-events","none");
-      gg.append("circle").attr("cx", cx).attr("cy", cy).attr("r", rr)
-        .attr("fill","none").attr("stroke","#fff").attr("stroke-width",HALO_WHITE_W)
-        .attr("vector-effect","non-scaling-stroke")
-        .attr("filter","url(#haloShadow)");
-      gg.append("circle").attr("cx", cx).attr("cy", cy).attr("r", rr)
-        .attr("fill","none").attr("stroke",highlightColor()).attr("stroke-width",HALO_RED_W)
-        .attr("vector-effect","non-scaling-stroke");
+      addHaloCircleOutside(g, +c.attr("cx"), +c.attr("cy"), +c.attr("r"));
     });
 }
 
-/* ---- 5) Saturation ---- */
+/* 5) Saturation */
 function drawSaturation(svg, data) {
-  const W = +svg.attr("width"), H = +svg.attr("height");
-  const margin = { top: 40, right: 20, bottom: 40, left: 20 };
+  const W = BASE_W, H = BASE_H;
+  const margin = { top: 44, right: 24, bottom: 44, left: 24 };
   const innerW = W - margin.left - margin.right;
   const innerH = H - margin.top - margin.bottom;
 
@@ -555,18 +751,18 @@ function drawSaturation(svg, data) {
 
   rects.each(function(_, i){
     if (!isTarget(i, data.targetIdx)) return;
-    const r = d3.select(this);
-    addHaloRect(g, +r.attr("x"), +r.attr("y"), +r.attr("width"), +r.attr("height"), 2, 2);
+    const rct = d3.select(this);
+    addHaloRectOutside(g, +rct.attr("x"), +rct.attr("y"), +rct.attr("width"), +rct.attr("height"), 2, 2);
   });
 }
 
-/* ---- 6) Radial Bars ---- */
+/* 6) Radial Bars */
 function drawRadialBars(svg, data) {
-  const W = +svg.attr("width"), H = +svg.attr("height");
+  const W = BASE_W, H = BASE_H;
   const g = svg.append("g").attr("transform", `translate(${W/2},${H/2})`);
 
   const n = data.values.length;
-  const innerR = 35;
+  const innerR = 38;
   const outerR = Math.min(W, H) * 0.40;
 
   const r = d3.scaleLinear().domain([0, d3.max(data.values)]).range([innerR, outerR]);
@@ -592,7 +788,7 @@ function drawRadialBars(svg, data) {
     .attr("fill", "#9467bd")
     .attr("opacity", 0.9)
     .attr("stroke", "#fff")
-    .attr("stroke-width", 1.5);
+    .attr("stroke-width", 1.4);
 
   paths.each(function(_, i){
     if (!isTarget(i, data.targetIdx)) return;
@@ -602,7 +798,7 @@ function drawRadialBars(svg, data) {
   g.append("circle").attr("r", 2.5).attr("fill", "#666");
 }
 
-/* ---- 7) Star Area ---- */
+/* 7) Star Area */
 function starPath(cx, cy, outerR, innerR, points = 5) {
   let d = "";
   const step = Math.PI / points;
@@ -617,21 +813,21 @@ function starPath(cx, cy, outerR, innerR, points = 5) {
 }
 
 function drawStarArea(svg, data) {
-  const W = +svg.attr("width"), H = +svg.attr("height");
-  const margin = 35;
+  const W = BASE_W, H = BASE_H;
 
-  const maxOuter = 55;
-  const r = d3.scaleSqrt().domain([0, d3.max(data.values)]).range([0, maxOuter]);
+  const maxOuter = Math.min(W, H) * 0.12;
+  const r = d3.scaleSqrt().domain([0, d3.max(data.values)]).range([14, maxOuter]);
 
-  const cols = 4;
-  const cellW = (W - 2 * margin) / cols;
-  const cellH = (H - 2 * margin) / 2;
+  const radii = data.values.map(v => r(v));
 
-  const g = svg.append("g").attr("transform", `translate(${margin},${margin})`);
+  const bounds = { x0: 70, y0: 70, x1: W-70, y1: H-70 };
+  const pts = placePointsRandom(data.values.length, bounds, radii, 26, 4000);
+
+  const g = svg.append("g");
 
   data.values.forEach((v, i) => {
-    const cx = (i % cols) * cellW + cellW / 2;
-    const cy = Math.floor(i / cols) * cellH + cellH / 2;
+    const cx = pts[i].x;
+    const cy = pts[i].y;
 
     const outerR = r(v);
     const innerR = outerR * 0.45;
@@ -642,15 +838,24 @@ function drawStarArea(svg, data) {
       .attr("fill", "#17becf")
       .attr("opacity", 0.65);
 
-    if (isTarget(i, data.targetIdx)) {
-      addHaloPath(g, d);
-    }
+    if (isTarget(i, data.targetIdx)) addHaloPath(g, d);
   });
 }
 
 /* --------------------------- Draw dispatcher ------------------------ */
 
-function renderTrial(trial) {
+function resetSliderGateForTrial() {
+  sliderMovedThisTrial = false;
+  sliderStartValueThisTrial = Math.floor(Math.random()*101);
+  slider.value = String(sliderStartValueThisTrial);
+  sliderValue.textContent = "—";
+  btnNext.disabled = REQUIRE_SLIDER_MOVE;
+  mustMoveNote.style.display = REQUIRE_SLIDER_MOVE ? "block" : "none";
+  fastWarn.style.display = "none";
+  saveOk.style.display = "none";
+}
+
+function renderTrial(trial, reuseExistingData=false) {
   clearViz();
 
   const viz = VIZ_TYPES.find(v => v.id === trial.vizId);
@@ -662,13 +867,12 @@ function renderTrial(trial) {
   promptEl.textContent = getPromptForViz(trial.vizId);
   hintText.textContent = getHintForViz(trial.vizId);
 
-  slider.value = "50";
-  sliderValue.textContent = "50%";
+  resetSliderGateForTrial();
 
-  const data = makeTrialData(trial.groundTruthPct);
-  trial._data = data;
+  const data = reuseExistingData && currentTrialData ? currentTrialData : makeTrialData(trial.groundTruthPct);
+  currentTrialData = data;
 
-  const svg = makeSvg(700, 420);
+  const svg = makeSvgResponsive();
 
   switch (trial.vizId) {
     case "alignedBars":  drawAlignedBars(svg, data); break;
@@ -688,11 +892,21 @@ function renderTrial(trial) {
 /* --------------------------- Record result + advance ---------------- */
 
 function recordAndAdvance() {
+  const elapsedMs = Date.now() - trialStartMs;
+
+  if (elapsedMs < MIN_TRIAL_TIME_MS) {
+    fastWarn.style.display = "block";
+    return;
+  }
+
+  if (REQUIRE_SLIDER_MOVE && !sliderMovedThisTrial) {
+    mustMoveNote.style.display = "block";
+    return;
+  }
+
   btnNext.disabled = true;
 
   const trial = trials[trialIndex];
-  const elapsedMs = Date.now() - trialStartMs;
-
   const responsePct = clampInt(slider.value, 0, 100);
   const groundTruthPct = trial.groundTruthPct;
 
@@ -707,27 +921,40 @@ function recordAndAdvance() {
     visualizationLabel: viz ? viz.label : trial.vizId,
     groundTruthPct,
     responsePct,
-    responseTimeMs: elapsedMs
+    responseTimeMs: elapsedMs,
+    sliderStartValue: sliderStartValueThisTrial,
+    sliderMoved: sliderMovedThisTrial ? 1 : 0
   });
 
   trialIndex += 1;
+  currentTrialData = null;
 
   if (trialIndex < trials.length) {
-    renderTrial(trials[trialIndex]);
-    btnNext.disabled = false;
+    renderTrial(trials[trialIndex], false);
   } else {
-    screenTask.style.display = "none";
-    screenDone.style.display = "block";
+    finishAndUpload();
   }
 }
 
-/* --------------------------- Download CSV --------------------------- */
+/* --------------------------- Finish + upload to Google Sheet ---------------- */
+
+async function finishAndUpload(){
+  // Hide task UI immediately
+  screenTask.style.display = "none";
+  screenDone.style.display = "block";
+
+  // Post to sheet (best-effort)
+  await postRowsToSheet(results);
+}
+
+/* --------------------------- Download CSV (optional) --------------------------- */
 
 function downloadCSV() {
   const headers = [
     "participantId","trialNumber","blockNumber","trialInBlock",
     "visualizationType","visualizationLabel",
-    "groundTruthPct","responsePct","responseTimeMs"
+    "groundTruthPct","responsePct","responseTimeMs",
+    "sliderStartValue","sliderMoved"
   ];
 
   const lines = [];
@@ -749,10 +976,47 @@ function downloadCSV() {
   a.remove();
 }
 
+/* --------------------------- Responsive redraw ---------------------- */
+
+function debounce(fn, wait=120){
+  let t = null;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), wait);
+  };
+}
+
+const onResize = debounce(() => {
+  if (screenTask.style.display === "none") return;
+  if (!trials.length) return;
+  if (trialIndex >= trials.length) return;
+
+  renderTrial(trials[trialIndex], true);
+
+  slider.value = String(clampInt(slider.value,0,100));
+  if (sliderMovedThisTrial) {
+    sliderValue.textContent = `${slider.value}%`;
+    btnNext.disabled = false;
+    mustMoveNote.style.display = "none";
+  } else {
+    sliderValue.textContent = "—";
+    btnNext.disabled = REQUIRE_SLIDER_MOVE;
+    mustMoveNote.style.display = REQUIRE_SLIDER_MOVE ? "block" : "none";
+  }
+}, 150);
+
+window.addEventListener("resize", onResize);
+window.addEventListener("orientationchange", onResize);
+
 /* --------------------------- Wire UI events ------------------------- */
 
 slider.addEventListener("input", () => {
+  sliderMovedThisTrial = true;
   sliderValue.textContent = `${slider.value}%`;
+  mustMoveNote.style.display = "none";
+  fastWarn.style.display = "none";
+  saveOk.style.display = "none";
+  btnNext.disabled = false;
 });
 
 btnStart.addEventListener("click", () => {
@@ -765,13 +1029,13 @@ btnStart.addEventListener("click", () => {
   trials = buildTrials();
   trialIndex = 0;
   results = [];
+  currentTrialData = null;
 
   screenStart.style.display = "none";
   screenDone.style.display = "none";
   screenTask.style.display = "block";
 
-  renderTrial(trials[trialIndex]);
-  btnNext.disabled = false;
+  renderTrial(trials[trialIndex], false);
 });
 
 btnNext.addEventListener("click", recordAndAdvance);
