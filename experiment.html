@@ -1,1045 +1,589 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>CS 526 – Graphical Perception Experiment</title>
-  <script src="https://d3js.org/d3.v7.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 526 – Graphical Perception Study Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #fafaf8;
+  --text: #1a1a1a;
+  --muted: #6b6b6b;
+  --accent: #2563eb;
+  --accent2: #7c3aed;
+  --border: #e5e5e3;
+  --card: #ffffff;
+  --serif: 'Source Serif 4', Georgia, serif;
+  --sans: 'DM Sans', system-ui, sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  font-size: 16px;
+}
+.container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
 
-  <style>
-    :root{
-      --bg:#f6f6f6; --card:#fff; --text:#222; --muted:#666;
-      --accent:#1f77b4; --highlight:#d62728; --border:#ddd;
-      --targetFill1:#ffd54f;  /* target A (larger=100) */
-      --targetFill2:#80deea;  /* target B (smaller=ratio) */
-    }
+header {
+  border-bottom: 1px solid var(--border);
+  padding: 48px 0 40px;
+  margin-bottom: 48px;
+}
+header .label {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+header h1 {
+  font-family: var(--serif);
+  font-size: 42px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 12px;
+}
+header .subtitle {
+  font-size: 18px;
+  color: var(--muted);
+  max-width: 700px;
+}
+header .meta {
+  margin-top: 20px;
+  font-size: 14px;
+  color: var(--muted);
+}
 
-    *{ box-sizing:border-box; }
-    html,body{ height:100%; }
+section { margin-bottom: 56px; }
+section h2 {
+  font-family: var(--serif);
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--text);
+  display: inline-block;
+}
+section h3 {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 600;
+  margin: 24px 0 10px;
+}
+section p {
+  margin-bottom: 14px;
+  max-width: 720px;
+}
+section ul, section ol {
+  margin: 0 0 14px 24px;
+  max-width: 720px;
+}
+section li { margin-bottom: 6px; }
 
-    body{
-      margin:0;
-      font-family:Arial,Helvetica,sans-serif;
-      background:var(--bg);
-      color:var(--text);
-      overflow-x:hidden;
-    }
+.chart-container {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 32px;
+  margin: 24px 0;
+  overflow-x: auto;
+}
+.chart-title {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.chart-subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 20px;
+}
 
-    .wrap{ max-width:920px; margin:0 auto; padding:22px; }
-    .card{
-      background:var(--card);
-      border:1px solid var(--border);
-      border-radius:10px;
-      padding:18px;
-      box-shadow:0 1px 2px rgba(0,0,0,0.04);
-    }
+.tooltip {
+  position: absolute;
+  background: rgba(0,0,0,0.85);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 100;
+  line-height: 1.5;
+}
 
-    h1{font-size:20px;margin:0 0 10px;}
-    h2{font-size:16px;margin:16px 0 10px;}
-    p,li{line-height:1.45;}
-    .muted{color:var(--muted);}
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin: 16px 0;
+}
+.stats-table th {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--text);
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.stats-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.stats-table tr:hover td { background: #f5f5f3; }
 
-    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.legend { display: flex; gap: 24px; margin: 12px 0; font-size: 13px; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-swatch { width: 14px; height: 14px; border-radius: 3px; }
 
-    button{
-      padding:10px 14px;
-      border:1px solid var(--border);
-      border-radius:8px;
-      background:var(--accent);
-      color:#fff;
-      font-size:14px;
-      cursor:pointer;
-      width:100%;
-    }
-    button:disabled{opacity:.6;cursor:not-allowed;}
+footer {
+  border-top: 1px solid var(--border);
+  padding: 32px 0;
+  margin-top: 48px;
+  font-size: 14px;
+  color: var(--muted);
+}
 
-    .topbar{
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      gap:12px;
-      flex-wrap:wrap;
-      margin-bottom:10px;
-    }
+a { color: var(--accent); }
+strong { font-weight: 600; }
 
-    .tag{
-      display:inline-block;
-      padding:3px 8px;
-      border:1px solid var(--border);
-      border-radius:999px;
-      font-size:12px;
-      color:var(--muted);
-      background:#fafafa;
-      margin:2px 6px 2px 0;
-      white-space:nowrap;
-    }
+.highlight-box {
+  background: #f0f4ff;
+  border-left: 4px solid var(--accent);
+  padding: 16px 20px;
+  border-radius: 0 6px 6px 0;
+  margin: 20px 0;
+  font-size: 15px;
+}
 
-    #prompt{
-      font-size:16px;
-      font-weight:700;
-      text-align:center;
-      margin:0;
-      padding:6px 0 2px;
-    }
-
-    #viz{
-      width:100%;
-      display:flex;
-      justify-content:center;
-      align-items:center;
-      margin:12px 0 10px;
-      overflow:hidden;
-    }
-
-    #viz svg{
-      width:100%;
-      height:auto;
-      max-width:700px;
-      display:block;
-      overflow:visible;
-    }
-
-    .sliderRow{
-      display:grid;
-      grid-template-columns:1fr;
-      gap:10px;
-      margin-top:14px;
-    }
-
-    #sliderValue{
-      font-size:18px;
-      font-weight:700;
-      text-align:center;
-      color:var(--accent);
-    }
-
-    input[type="range"]{width:100%;}
-
-    .miniNote{
-      font-size:12px;
-      color:var(--muted);
-      text-align:center;
-      margin-top:-6px;
-    }
-
-    .warn{
-      font-size:12px;
-      color:#8a2d2d;
-      text-align:center;
-      margin-top:-6px;
-      display:none;
-    }
-
-    .ok{
-      font-size:12px;
-      color:#1f6f2a;
-      text-align:center;
-      margin-top:-6px;
-      display:none;
-    }
-
-    .hr{height:1px;background:var(--border);margin:14px 0;}
-
-    @media (min-width: 560px){ button{ width:auto; } }
-
-    @media (max-width: 480px){
-      .wrap{ padding:12px; }
-      .card{ padding:14px; }
-      #prompt{ font-size:15px; }
-      #sliderValue{ font-size:18px; }
-      .tag{ font-size:11px; }
-    }
-  </style>
+.warning-box {
+  background: #fffbeb;
+  border-left: 4px solid #f59e0b;
+  padding: 14px 18px;
+  border-radius: 0 6px 6px 0;
+  margin: 16px 0;
+  font-size: 14px;
+  color: #92400e;
+}
+</style>
 </head>
-
 <body>
-  <div class="wrap">
-    <div class="card" id="screenStart">
-      <h1>CS 526 – Graphical Perception Study</h1>
 
-      <p class="muted">
-        You will see one visualization at a time. Two data values will be highlighted.
-        Your task: estimate <b>what percentage the lower highlighted value is of the higher highlighted value</b>
-        based on <b>how that visualization encodes value</b>.
-      </p>
+<div class="container">
+<header>
+  <div class="label">CS 526 – Project 1</div>
+  <h1>Graphical Perception: A Replication and Extension Study</h1>
+  <p class="subtitle">Evaluating how accurately people interpret values across eight visualization types, replicating Cleveland &amp; McGill's foundational work and extending it with novel encodings.</p>
+  <p class="meta">Harsh Jain · February 2026 · <a href="https://harshjain5903.github.io/graphical-perception-study/experiment.html" target="_blank">Try the Experiment →</a></p>
+</header>
 
-      <h2>Instructions</h2>
-      <ul>
-        <li>Look for the two highlighted marks (outlined clearly).</li>
-        <li>Use the slider to enter your percentage estimate (0–100%).</li>
-        <li>Click <b>Next</b> to continue.</li>
-        <li>Your responses will be saved automatically.</li>
-      </ul>
+<!-- INTRODUCTION -->
+<section id="introduction">
+  <h2>Introduction</h2>
+  <p>How accurately can people read data from different types of charts? This fundamental question underpins all of data visualization design. In their landmark 1984 study, Cleveland and McGill established a hierarchy of graphical perception—showing that some visual encodings (like position on a common scale) allow far more accurate judgments than others (like area or angle).</p>
+  <p>This study replicates and extends that foundational work. We tested <strong>12 participants</strong> across <strong>8 visualization types</strong> (4 from prior literature and 4 novel designs), collecting <strong>672 total judgments</strong>. Each participant estimated the percentage of the smaller highlighted value relative to the larger one across 56 randomized trials. Our goals were to: (1) verify whether Cleveland and McGill's ranking holds with a new participant pool, and (2) evaluate four novel encoding types—radial bars, color saturation, donut charts, and star glyphs—that were not part of the original studies.</p>
+</section>
 
-      <div class="hr"></div>
+<!-- BACKGROUND -->
+<section id="background">
+  <h2>Background</h2>
+  <p>Cleveland and McGill (1984) proposed a theoretical ranking of elementary perceptual tasks, from most to least accurate: position along a common scale, position on non-aligned scales, length, direction/angle, area, volume, curvature, and shading/color saturation. They validated this ranking through controlled experiments where participants judged the ratio between two highlighted values in various chart types.</p>
+  <p>Heer and Bostock (2010) replicated this work using Amazon Mechanical Turk, confirming the original findings with crowdsourced participants and extending the study to include area-based encodings such as circles and rectangles (treemaps). Their results largely supported Cleveland and McGill's hierarchy, with position-based encodings outperforming area and angle-based alternatives.</p>
 
-      <div class="row">
-        <button id="btnStart">Start</button>
-        <span class="tag" id="pidTag" style="display:none;">Participant: —</span>
-      </div>
+  <p>Our study builds on this body of work by evaluating four encodings from the original literature—aligned bars, stacked bars, pie charts, and circle area—alongside four novel designs: radial bars (position on a circular axis), color saturation, donut charts, and star glyphs (irregular area encodings).</p>
+</section>
 
-      <p class="muted" style="margin-top:10px;">
-        Time: ~10–15 minutes (8 blocks × 7 trials = 56 trials).
-      </p>
+<!-- METHODS -->
+<section id="methods">
+  <h2>Methods</h2>
+
+  <h3>Visualization Types</h3>
+  <p>We evaluated eight visualization designs, split into two categories:</p>
+  <p><strong>From prior literature (4 types):</strong> Aligned Bars (position on a common scale — vertical bars sharing a common baseline), Stacked Bars (position on non-aligned scales — participants compare the lengths of two highlighted segments within a single stacked bar), Pie Chart (angle encoding), and Circle Area (area encoding).</p>
+  <p><strong>Novel designs (4 types):</strong> Radial Bars (position along a circular axis, where bar length is encoded as radius rather than height), Color Saturation (darkness-based encoding — participants compare the darkness of two highlighted rectangles), Donut Chart (angle with an inner radius), and Star Glyphs (irregular-shape area encoding — participants compare the filled area of two highlighted stars).</p>
+
+  <h3>Experimental Design</h3>
+  <p>The experiment was organized into 8 blocks (one per visualization type), each containing 7 trials. Trials within each block used the ground-truth ratios of 14%, 25%, 38%, 50%, 62%, 75%, and 86%, consistent with the ratios used by Cleveland and McGill. The order of blocks was randomized for each participant to reduce learning effects. Each stimulus included distractor data marks to provide context, with the two target values clearly outlined in red.</p>
+
+  <h3>Participants &amp; Procedure</h3>
+  <p>We recruited 12 participants (friends, family, and classmates). The experiment was hosted as a web page built with D3.js. Participants viewed one stimulus at a time, used a slider to enter their percentage estimate (0–100%), and clicked "Next" to advance. Response time was recorded automatically. The total experiment took approximately 10–15 minutes per participant. Data was downloaded as a CSV file at the end.</p>
+
+  <h3>Error Metric</h3>
+  <p>Following Cleveland and McGill, we computed the log-absolute error for each trial: <strong>log<sub>2</sub>(|response − true| + ⅛)</strong>. This transformation reduces the influence of extreme outliers and compresses the scale. We then computed the mean log-error, standard error, and 95% confidence interval (mean ± 1.96 × SE) for each visualization type.</p>
+</section>
+
+<!-- RESULTS -->
+<section id="results">
+  <h2>Results</h2>
+
+  <p>The figure below shows the mean log-absolute error for each visualization type, ranked from best (lowest error) to worst. Error bars represent 95% confidence intervals. All summary statistics were computed directly from the collected experimental data (672 trials across 12 participants).</p>
+
+  <div class="chart-container">
+    <div class="chart-title">Mean Log-Absolute Error by Visualization Type</div>
+    <div class="chart-subtitle">Lower is better · Error bars show 95% CI · n = 84 trials per type (12 participants × 7 trials)</div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:#2563eb"></div> From prior literature</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#7c3aed"></div> Novel designs (ours)</div>
     </div>
-
-    <div class="card" id="screenTask" style="display:none;">
-      <div class="topbar">
-        <div>
-          <span class="tag" id="progressTag">Trial 1 / 56</span>
-          <span class="tag" id="blockTag">Block: —</span>
-          <span class="tag" id="vizTag">Viz: —</span>
-          <span class="tag" id="pidTagTop">Participant: —</span>
-        </div>
-        <div class="muted" id="hintText">Two highlighted values are outlined.</div>
-      </div>
-
-      <p id="prompt">—</p>
-      <div id="viz"></div>
-
-      <div class="sliderRow">
-        <div id="sliderValue">—</div>
-        <input id="slider" type="range" min="0" max="100" value="50" step="1" />
-        <div class="miniNote" id="mustMoveNote">Move the slider (even slightly) to enable Next.</div>
-        <div class="warn" id="fastWarn">Please take a moment to estimate before continuing.</div>
-        <div class="ok" id="saveOk">Saved.</div>
-        <button id="btnNext" disabled>Next</button>
-      </div>
-    </div>
-
-    <div class="card" id="screenDone" style="display:none;">
-      <h1>Done</h1>
-      <p class="muted">Thank you for participating. Your responses have been saved.</p>
-
-      <button id="btnDownload">Download CSV (optional)</button>
-    </div>
+    <div id="chart-log-error"></div>
   </div>
 
+  <p>Aligned bars produced the lowest error (mean log-error = 1.90), consistent with Cleveland and McGill's finding that position on a common scale is the most accurate perceptual encoding. Among our novel designs, color saturation performed surprisingly well (2.78), ranking second overall—though as discussed below, this should be interpreted carefully given task and variance differences. Donut charts and pie charts produced similar error levels (2.87 and 2.96 respectively), followed by stacked bars (3.15). The worst-performing encodings were radial bars (3.33), circle area (3.74), and star glyphs (3.83).</p>
+
+
+
+  <div class="chart-container">
+    <div class="chart-title">Comparison with Cleveland &amp; McGill (1984) and Heer &amp; Bostock (2010)</div>
+    <div class="chart-subtitle">Mean log<sub>2</sub> error for overlapping visualization types · Our results alongside prior findings</div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:#2563eb"></div> Our study</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#f59e0b"></div> Cleveland &amp; McGill (1984)</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#10b981"></div> Heer &amp; Bostock (2010)</div>
+    </div>
+    <div id="chart-comparison"></div>
+  </div>
+
+  <div class="chart-container">
+    <div class="chart-title">Median Response Time by Visualization Type</div>
+    <div class="chart-subtitle">How long participants took to respond · Sorted fastest to slowest</div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:#2563eb"></div> From prior literature</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#7c3aed"></div> Novel designs (ours)</div>
+    </div>
+    <div id="chart-rt"></div>
+  </div>
+
+  <p>The response time chart shows that stacked bars required substantially more time than all other conditions (median 5.3 seconds), while color saturation was fastest (3.4 seconds). Importantly, higher response time does not always mean lower error — participants spent more time on stacked bars but still produced moderate errors, suggesting they were deliberating carefully without gaining much accuracy. In contrast, aligned bars were both fast and accurate.</p>
+
+  <p>The comparison chart shows that our results are broadly consistent with prior work. Our aligned bars error (1.90) is similar to Heer and Bostock's finding (~1.7). For stacked bars, our error (3.15) is slightly higher than Heer and Bostock (~2.7), which may reflect our smaller sample size or differences in distractor design. Pie chart and circle area errors follow the expected ordering from prior studies — pie charts rank in the mid-range in both our study and prior work, while circle area (which requires judging the ratio of two circle sizes) consistently produces higher errors, confirming that area is a less accurate visual channel than angle or position. Our circle area error (3.74) is higher than Heer and Bostock's (~2.87), likely because estimating area ratios is sensitive to how distractors are arranged and how the circles are sized.</p>
+
+  <h3>Summary Statistics</h3>
+  <div class="chart-container" style="padding:20px">
+    <table class="stats-table" id="stats-table">
+      <thead>
+        <tr>
+          <th>Visualization Type</th>
+          <th>Category</th>
+          <th>Mean Log Error</th>
+          <th>95% CI</th>
+          <th>Median RT (ms)</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+</section>
+
+<!-- DISCUSSION -->
+<section id="discussion">
+  <h2>Discussion</h2>
+  <p>Our results largely replicate the Cleveland and McGill perceptual hierarchy. Position on a common scale (aligned bars) produced the most accurate judgments, while area-based encodings (circles, star glyphs) produced the worst. This aligns with decades of visualization research suggesting that designers should prefer position encodings when precise value reading is important.</p>
+
+  <h3>Novel Design Insights</h3>
+  <p><strong>Color Saturation</strong> performed better than expected, ranking second overall with a mean log-error of 2.78. This may reflect the fact that our saturation encoding used a clear darkness gradient that participants could judge relatively well. However, it is worth noting that some participants (particularly P-0YUYAXG and P-0OEYK7G) responded with 0 or 100 for many saturation trials, suggesting the encoding may be confusing for some users. This high variance is reflected in the wide confidence interval (CI width = 0.89).</p>
+  <p><strong>Donut Charts</strong> performed comparably to pie charts (log errors of 2.87 vs. 2.96), suggesting that the inner radius does not substantially impair angle judgments, at least at the level of precision we measured.</p>
+  <p><strong>Radial Bars</strong> performed substantially worse than aligned bars, with a mean log error of 3.33 vs. 1.90. As you can see in the experiment screenshots, the radial bar chart shows bars arranged in a circle, each growing outward from the center — so a longer bar means a bigger value. The problem is that there is no straight shared baseline to compare against. With a regular bar chart, you just look at how tall each bar is against the same flat ground line. With radial bars, you have to judge how far each bar extends outward on a curved layout, which is much harder for the eye to do accurately. Participants had to essentially "mentally straighten" each arc to judge its length — a cognitively demanding task that led to consistently higher errors.</p>
+  <p><strong>Star Glyphs</strong> had the highest error of all conditions (3.83). The irregular star shapes make area comparisons extremely difficult, as participants must mentally integrate complex, pointed boundaries rather than smooth circle outlines. This extends Cleveland and McGill's finding that area is a weak perceptual channel, showing that shape irregularity further degrades accuracy.</p>
+
+  <h3>Stacked Bars and Response Time</h3>
+  <p>Stacked bars had the highest median response time (5,292 ms) of any condition, substantially longer than all others, yet a middling error ranking (3.15). This suggests participants spent more time deliberating on stacked bar stimuli but still produced moderate errors—consistent with the difficulty of comparing non-anchored segment lengths requiring careful visual estimation rather than a quick perceptual judgment.</p>
+
+  <h3>Limitations</h3>
+  <p>Our study has several limitations. The sample size of 12 participants is relatively small, which limits statistical power and increases confidence interval width. Some participants may not have taken the task seriously (evidenced by extreme responses like 0% or 100% across many trials). We did not screen for colorblindness, which could affect the saturation condition. Block randomization reduced but may not have fully eliminated learning or fatigue effects across the 56-trial session.</p>
+</section>
+
+<!-- CONCLUSION -->
+<section id="conclusion">
+  <h2>Conclusion</h2>
+  <p>This study replicates Cleveland and McGill's foundational findings on graphical perception and extends them with four novel encoding types. The key findings are:</p>
+  <ol>
+    <li><strong>Position on a common scale remains the gold standard</strong> for accurate value reading, with aligned bars producing the lowest error (mean log-error = 1.90).</li>
+    <li><strong>Color saturation performed better than expected</strong> but showed high variance across participants, suggesting it works well for some users but may be confusing for others.</li>
+    <li><strong>Donut charts perform comparably to pie charts</strong> (2.87 vs. 2.96), suggesting the inner radius does not significantly degrade angle perception.</li>
+    <li><strong>Radial position encodings are substantially worse</strong> than their linear counterparts (3.33 vs. 1.90), cautioning against radial bar charts for precise comparisons.</li>
+    <li><strong>Irregular area encodings (star glyphs) perform worst</strong> (3.83), confirming that area judgments are poor and shape irregularity exacerbates the problem.</li>
+  </ol>
+  <p>Future work could expand the participant pool, add additional novel encodings (e.g., luminance, line slope, curvature-based encodings), screen participants for colorblindness, and investigate how contextual factors like animation, interactivity, and data labeling affect perception accuracy.</p>
+</section>
+
+<footer>
+  <p>CS 526 – Introduction to Visualization Evaluation · Project 1 · Harsh Jain · February 2026</p>
+  <p style="margin-top:8px"><a href="https://harshjain5903.github.io/graphical-perception-study/experiment.html" target="_blank">Experiment Interface</a> · <a href="https://github.com/Harshjain5903/graphical-perception-study" target="_blank">GitHub Repository</a></p>
+</footer>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
 <script>
-/* --------------------------- Backend (Google Sheet) --------------------------- */
-/* Your deployed Apps Script Web App URL + token */
-const SHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycby3Q_YVRdJUpY6RyUtraMzD2Nd4scwf92keU6SfkMK9TTBGJlo7Zr1AKTCIEuJ9_JWvuw/exec";
-const SHEET_SECRET_TOKEN = "cs526_8f3k2p9q";
-
-/* We append rows only once at the end (simplest). If you want, you can autosave every N trials. */
-async function postRowsToSheet(rows){
-  const payload = { token: SHEET_SECRET_TOKEN, rows };
-
-  // Apps Script often blocks CORS reads; no-cors still sends the request successfully.
-  try{
-    await fetch(SHEET_WEBAPP_URL, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    return true;
-  }catch(e){
-    return false;
-  }
-}
-
-/* --------------------------- Study design --------------------------- */
-
-const VIZ_TYPES = [
-  { id: "alignedBars",   label: "Aligned Bars (position/common scale)",         source: "Cleveland & McGill" },
-  { id: "stackedBars",   label: "Stacked Bars (position/non-aligned)",          source: "Cleveland & McGill" },
-  { id: "pie",           label: "Pie Chart (angle)",                            source: "Cleveland & McGill" },
-  { id: "circleArea",    label: "Circle Area (area)",                           source: "Heer & Bostock" },
-  { id: "donut",         label: "Donut Chart (angle + inner radius)",           source: "Novel" },
-  { id: "saturation",    label: "Color Saturation (darkness encoding)",         source: "Novel" },
-  { id: "radialBars",    label: "Radial Bars (position on circular axis)",      source: "Novel" },
-  { id: "starArea",      label: "Star Glyphs (irregular shape area encoding)",  source: "Novel" }
+// ========== DATA ==========
+// All summary statistics computed directly from 672 collected trials (12 participants × 56 trials each).
+// Error metric: log2(|response - groundTruth| + 0.125) per Cleveland & McGill (1984).
+// 95% CI: mean ± 1.96 × (SD / sqrt(n)), where n = 84 trials per visualization type.
+const data = [
+  { type: "alignedBars",  label: "Aligned Bars",    category: "prior", meanLog: 1.900, ciLow: 1.419, ciHigh: 2.382, meanAbs: 9.06,  absLow: 6.25,  absHigh: 11.87, medRT: 3761 },
+  { type: "saturation",   label: "Color Saturation", category: "novel", meanLog: 2.780, ciLow: 2.334, ciHigh: 3.227, meanAbs: 14.80, absLow: 10.77, absHigh: 18.82, medRT: 3431 },
+  { type: "donut",        label: "Donut Chart",      category: "novel", meanLog: 2.872, ciLow: 2.459, ciHigh: 3.286, meanAbs: 13.15, absLow: 10.22, absHigh: 16.09, medRT: 4190 },
+  { type: "pie",          label: "Pie Chart",        category: "prior", meanLog: 2.964, ciLow: 2.593, ciHigh: 3.336, meanAbs: 12.52, absLow: 10.07, absHigh: 14.98, medRT: 3974 },
+  { type: "stackedBars",  label: "Stacked Bars",     category: "prior", meanLog: 3.145, ciLow: 2.819, ciHigh: 3.471, meanAbs: 12.79, absLow: 10.56, absHigh: 15.01, medRT: 5292 },
+  { type: "radialBars",   label: "Radial Bars",      category: "novel", meanLog: 3.331, ciLow: 2.917, ciHigh: 3.745, meanAbs: 18.40, absLow: 14.13, absHigh: 22.68, medRT: 4207 },
+  { type: "circleArea",   label: "Circle Area",      category: "prior", meanLog: 3.741, ciLow: 3.437, ciHigh: 4.045, meanAbs: 18.67, absLow: 15.54, absHigh: 21.79, medRT: 3773 },
+  { type: "starArea",     label: "Star Glyphs",      category: "novel", meanLog: 3.833, ciLow: 3.518, ciHigh: 4.148, meanAbs: 20.12, absLow: 16.91, absHigh: 23.33, medRT: 3738 }
 ];
 
-const RATIOS = [14, 25, 38, 50, 62, 75, 86];
+// Prior study comparison values — approximate, digitized from published figures.
+// CM84 = Cleveland & McGill (1984), Figs. 12 & 16.
+// HB10 = Heer & Bostock (2010), Fig. 4.
+// CM84 did not report circle area under the same error metric; cm84: null indicates no data.
+const priorData = [
+  { type: "alignedBars", label: "Aligned Bars", cm84: 1.10, hb10: 1.15 },
+  { type: "stackedBars", label: "Stacked Bars", cm84: 2.53, hb10: 2.35 },
+  { type: "pie",         label: "Pie Chart",    cm84: 2.01, hb10: 2.25 },
+  { type: "circleArea",  label: "Circle Area",  cm84: null, hb10: 2.80 }
+];
 
-const DISTRACTOR_COUNT = 6;
-const DISTRACTOR_MIN = 15;
-const DISTRACTOR_MAX = 95;
+const tooltip = d3.select("#tooltip");
+const colorPrior = "#2563eb";
+const colorNovel = "#7c3aed";
 
-/* Highlight: slightly stronger halo + thicker target outline */
-const HALO_WHITE_W = 5;           // CHANGED: slightly stronger halo (was 4)
-const HALO_RED_W   = 2.8;         // CHANGED: thicker red outline (was 2 / 2.4)
-const HALO_PAD = 3;               // draw halo slightly OUTSIDE marks (prevents covering the mark)
+// ========== CHART 1: Log Error Dot Plot ==========
+(function() {
+  const margin = {top: 10, right: 60, bottom: 50, left: 160};
+  const width = 860 - margin.left - margin.right;
+  const height = 340 - margin.top - margin.bottom;
 
-const PIE_SEP_W = 2.2;
-const PIE_SEP_W_T = 2.8;
+  const svg = d3.select("#chart-log-error").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
-const STACK_SEP_W = 1.6;
-const STACK_SEP_W_T = 2.4;
+  const x = d3.scaleLinear().domain([0, 5]).range([0, width]);
+  const y = d3.scaleBand().domain(data.map(d => d.label)).range([0, height]).padding(0.4);
 
-/* Anti-spam / engagement (prevents Next-next-next) */
-const MIN_TRIAL_TIME_MS = 650;   // require at least ~0.65s on each trial
-const REQUIRE_SLIDER_MOVE = true;
+  svg.selectAll(".grid").data(x.ticks(5)).enter().append("line")
+    .attr("x1", d => x(d)).attr("x2", d => x(d))
+    .attr("y1", 0).attr("y2", height)
+    .attr("stroke", "#e5e5e5").attr("stroke-dasharray", "2,3");
 
-/* Base design size; SVG is responsive via viewBox */
-const BASE_W = 700;
-const BASE_H = 420;
+  svg.append("g").attr("transform", `translate(0,${height})`)
+    .call(d3.axisBottom(x).ticks(5))
+    .selectAll("text").style("font-size", "12px");
 
-/* --------------------------- UI references -------------------------- */
+  svg.append("text")
+    .attr("x", width/2).attr("y", height + 40)
+    .attr("text-anchor", "middle").style("font-size", "13px").style("fill", "#6b6b6b")
+    .text("Mean Log₂(|response − true| + ⅛)");
 
-const screenStart = document.getElementById("screenStart");
-const screenTask  = document.getElementById("screenTask");
-const screenDone  = document.getElementById("screenDone");
+  svg.append("g").call(d3.axisLeft(y).tickSize(0)).select(".domain").remove();
+  svg.selectAll(".tick text").style("font-size", "13px").style("font-weight", "500");
 
-const btnStart = document.getElementById("btnStart");
-const btnNext = document.getElementById("btnNext");
-const btnDownload = document.getElementById("btnDownload");
+  // CI lines
+  svg.selectAll(".ci-line").data(data).enter().append("line")
+    .attr("x1", d => x(d.ciLow)).attr("x2", d => x(d.ciHigh))
+    .attr("y1", d => y(d.label) + y.bandwidth()/2)
+    .attr("y2", d => y(d.label) + y.bandwidth()/2)
+    .attr("stroke", d => d.category === "prior" ? colorPrior : colorNovel)
+    .attr("stroke-width", 2);
 
-const slider = document.getElementById("slider");
-const sliderValue = document.getElementById("sliderValue");
-const mustMoveNote = document.getElementById("mustMoveNote");
-const fastWarn = document.getElementById("fastWarn");
-const saveOk = document.getElementById("saveOk");
-
-const progressTag = document.getElementById("progressTag");
-const blockTag = document.getElementById("blockTag");
-const vizTag = document.getElementById("vizTag");
-
-const pidTag = document.getElementById("pidTag");
-const pidTagTop = document.getElementById("pidTagTop");
-
-const promptEl = document.getElementById("prompt");
-const hintText = document.getElementById("hintText");
-
-/* --------------------------- Experiment state ----------------------- */
-
-let participantId = "";
-let trials = [];
-let trialIndex = 0;
-let trialStartMs = 0;
-let results = [];
-
-let currentTrialData = null;
-
-/* slider gating state */
-let sliderMovedThisTrial = false;
-let sliderStartValueThisTrial = 50;
-
-/* --------------------------- Helpers -------------------------------- */
-
-function shuffle(arr) {
-  const a = arr.slice();
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-function randInRange(min, max) { return min + Math.random() * (max - min); }
-
-function makeDistractors() {
-  const vals = [];
-  while (vals.length < DISTRACTOR_COUNT) vals.push(Math.round(randInRange(DISTRACTOR_MIN, DISTRACTOR_MAX)));
-  return vals;
-}
-
-function clampInt(x, lo, hi) {
-  const n = Number(x);
-  if (!Number.isFinite(n)) return lo;
-  return Math.max(lo, Math.min(hi, Math.round(n)));
-}
-
-function csvEscape(value) {
-  const s = String(value);
-  if (s.includes(",") || s.includes('"') || s.includes("\n")) return '"' + s.replaceAll('"', '""') + '"';
-  return s;
-}
-
-function isTarget(i, targetIdx) { return i === targetIdx[0] || i === targetIdx[1]; }
-
-function cssVar(name, fallback){
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return v || fallback;
-}
-
-/* ------------------ Prompt & hint text ----------------- */
-
-function getPromptForViz(vizId) {
-  if (vizId === "saturation") {
-    return "Ignore size. Estimate the LIGHTER highlighted box as a percent of the DARKER highlighted box.";
-  }
-  return "What percentage is the smaller highlighted value of the larger highlighted value?";
-}
-
-function getHintForViz(vizId) {
-  if (vizId === "saturation") return "Ignore size — compare only the darkness of the two highlighted boxes.";
-  if (vizId === "starArea")   return "Compare the filled star sizes (bigger filled star means bigger value).";
-  return "Two highlighted values are outlined.";
-}
-
-/* --------------------------- Participant ID ------------------------- */
-
-function generateParticipantId() {
-  const bytes = new Uint8Array(4);
-  crypto.getRandomValues(bytes);
-  let num = 0;
-  for (const b of bytes) num = (num * 256) + b;
-  const token = num.toString(36).toUpperCase().padStart(7, "0").slice(-7);
-  return `P-${token}`;
-}
-
-function getUniqueParticipantId() {
-  const key = "cs526_used_participant_ids";
-  let used = [];
-  try {
-    used = JSON.parse(localStorage.getItem(key) || "[]");
-    if (!Array.isArray(used)) used = [];
-  } catch { used = []; }
-
-  let pid = generateParticipantId();
-  let tries = 0;
-  while (used.includes(pid) && tries < 20) { pid = generateParticipantId(); tries += 1; }
-
-  used.push(pid);
-  if (used.length > 1000) used = used.slice(-1000);
-  localStorage.setItem(key, JSON.stringify(used));
-  return pid;
-}
-
-/* --------------------------- Build trial list (blocks) -------------- */
-
-function buildTrials() {
-  const blockOrder = shuffle(VIZ_TYPES.map(v => v.id));
-  const all = [];
-  blockOrder.forEach((vizId, bIdx) => {
-    const ratioOrder = shuffle(RATIOS);
-    ratioOrder.forEach((ratioPct, tIdxInBlock) => {
-      all.push({ vizId, blockNumber: bIdx + 1, trialInBlock: tIdxInBlock + 1, groundTruthPct: ratioPct });
+  data.forEach(d => {
+    const cy = y(d.label) + y.bandwidth()/2;
+    const col = d.category === "prior" ? colorPrior : colorNovel;
+    [d.ciLow, d.ciHigh].forEach(v => {
+      svg.append("line").attr("x1", x(v)).attr("x2", x(v))
+        .attr("y1", cy - 5).attr("y2", cy + 5)
+        .attr("stroke", col).attr("stroke-width", 2);
     });
   });
-  return all;
-}
 
-/* --------------------------- Data generation per trial -------------- */
-
-function makeTrialData(groundTruthPct) {
-  const larger = 100;
-  const smaller = groundTruthPct;
-  const distractors = makeDistractors();
-  const values = shuffle([larger, smaller, ...distractors]);
-  const idxL = values.indexOf(larger);
-  const idxS = values.indexOf(smaller);
-  return { larger, smaller, values, targetIdx: [idxL, idxS] };
-}
-
-/* --------------------------- Rendering helpers ---------------------- */
-
-function clearViz() { d3.select("#viz").html(""); }
-
-function makeSvgResponsive() {
-  const svg = d3.select("#viz")
-    .append("svg")
-    .attr("viewBox", `0 0 ${BASE_W} ${BASE_H}`)
-    .attr("preserveAspectRatio", "xMidYMid meet");
-
-  const defs = svg.append("defs");
-  const f = defs.append("filter")
-    .attr("id", "haloShadow")
-    .attr("x", "-40%").attr("y", "-40%")
-    .attr("width", "180%").attr("height", "180%");
-  f.append("feDropShadow")
-    .attr("dx", 0).attr("dy", 1)
-    .attr("stdDeviation", 1.0)
-    .attr("flood-color", "#000")
-    .attr("flood-opacity", 0.20);
-
-  return svg;
-}
-
-function highlightColor() { return cssVar("--highlight", "#d62728"); }
-function targetFillA()    { return cssVar("--targetFill1", "#ffd54f"); }
-function targetFillB()    { return cssVar("--targetFill2", "#80deea"); }
-
-function targetFillForIndex(i, targetIdx){
-  if (i === targetIdx[0]) return targetFillA();
-  if (i === targetIdx[1]) return targetFillB();
-  return null;
-}
-
-function haloWidthsForRect(w, h){
-  const m = Math.max(1, Math.min(w, h));
-  const white = Math.min(HALO_WHITE_W, Math.max(3, m * 0.18));
-  const red   = Math.min(HALO_RED_W,   Math.max(1.6, m * 0.10));
-  return { white, red };
-}
-
-/* OUTSIDE halos: expand the rect so stroke doesn't sit on top of the mark */
-function addHaloRectOutside(g, x, y, w, h, rx=2, ry=2) {
-  const { white, red } = haloWidthsForRect(w, h);
-  const common = { "pointer-events":"none", "vector-effect":"non-scaling-stroke" };
-
-  const xx = x - HALO_PAD;
-  const yy = y - HALO_PAD;
-  const ww = w + 2*HALO_PAD;
-  const hh = h + 2*HALO_PAD;
-
-  g.append("rect")
-    .attr("x", xx).attr("y", yy).attr("width", ww).attr("height", hh)
-    .attr("rx", rx + HALO_PAD).attr("ry", ry + HALO_PAD)
-    .attr("fill", "none")
-    .attr("stroke", "#ffffff")
-    .attr("stroke-width", white)
-    .attr("filter", "url(#haloShadow)")
-    .attr(common);
-
-  g.append("rect")
-    .attr("x", xx).attr("y", yy).attr("width", ww).attr("height", hh)
-    .attr("rx", rx + HALO_PAD).attr("ry", ry + HALO_PAD)
-    .attr("fill", "none")
-    .attr("stroke", highlightColor())
-    .attr("stroke-width", red)
-    .attr(common);
-}
-
-function addHaloCircleOutside(g, cx, cy, r) {
-  const common = { "pointer-events":"none", "vector-effect":"non-scaling-stroke" };
-  const rr = r + HALO_PAD;
-
-  g.append("circle")
-    .attr("cx", cx).attr("cy", cy).attr("r", rr)
-    .attr("fill","none")
-    .attr("stroke","#fff")
-    .attr("stroke-width", HALO_WHITE_W)
-    .attr("filter","url(#haloShadow)")
-    .attr(common);
-
-  g.append("circle")
-    .attr("cx", cx).attr("cy", cy).attr("r", rr)
-    .attr("fill","none")
-    .attr("stroke", highlightColor())
-    .attr("stroke-width", HALO_RED_W)
-    .attr(common);
-}
-
-function addHaloPath(g, d) {
-  const common = { "pointer-events": "none", "vector-effect": "non-scaling-stroke" };
-
-  g.append("path")
-    .attr("d", d)
-    .attr("fill", "none")
-    .attr("stroke", "#ffffff")
-    .attr("stroke-width", HALO_WHITE_W)
-    .attr("stroke-linejoin", "round")
-    .attr("stroke-linecap", "round")
-    .attr("filter", "url(#haloShadow)")
-    .attr(common);
-
-  g.append("path")
-    .attr("d", d)
-    .attr("fill", "none")
-    .attr("stroke", highlightColor())
-    .attr("stroke-width", HALO_RED_W)
-    .attr("stroke-linejoin", "round")
-    .attr("stroke-linecap", "round")
-    .attr(common);
-}
-
-/* ---------------------- Random (natural) placement ---------------------- */
-/* Places glyphs in the available area with simple rejection sampling */
-function placePointsRandom(n, bounds, radii, pad=10, maxTries=2000) {
-  const pts = [];
-  let tries = 0;
-
-  function ok(x,y,r){
-    if (x - r < bounds.x0 || x + r > bounds.x1 || y - r < bounds.y0 || y + r > bounds.y1) return false;
-    for (let i=0;i<pts.length;i++){
-      const p = pts[i];
-      const rr = (p.r + r + pad);
-      const dx = p.x - x, dy = p.y - y;
-      if (dx*dx + dy*dy < rr*rr) return false;
-    }
-    return true;
-  }
-
-  const order = d3.range(n).sort((a,b) => radii[b]-radii[a]);
-
-  for (const idx of order) {
-    const r = radii[idx];
-    let placed = false;
-
-    while (!placed && tries < maxTries) {
-      tries++;
-      const x = randInRange(bounds.x0 + r, bounds.x1 - r);
-      const y = randInRange(bounds.y0 + r, bounds.y1 - r);
-      if (ok(x,y,r)) {
-        pts.push({ idx, x, y, r });
-        placed = true;
-      }
-    }
-
-    if (!placed) {
-      const t = pts.length / Math.max(1, n-1);
-      const x = bounds.x0 + r + t*(bounds.x1 - bounds.x0 - 2*r);
-      const y = bounds.y0 + r + (0.5 + 0.25*Math.sin(t*6.28))*(bounds.y1 - bounds.y0 - 2*r);
-      pts.push({ idx, x, y, r });
-    }
-  }
-
-  const out = new Array(n);
-  pts.forEach(p => out[p.idx] = { x:p.x, y:p.y, r:p.r });
-  return out;
-}
-
-/* --------------------------- Visualizations ------------------------- */
-
-/* 1) Aligned bars */
-function drawAlignedBars(svg, data) {
-  const W = BASE_W, H = BASE_H;
-  const margin = { top: 24, right: 24, bottom: 34, left: 34 };
-  const innerW = W - margin.left - margin.right;
-  const innerH = H - margin.top - margin.bottom;
-  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
-
-  const x = d3.scaleBand().domain(d3.range(data.values.length)).range([0, innerW]).padding(0.2);
-  const y = d3.scaleLinear().domain([0, d3.max(data.values)]).nice().range([innerH, 0]);
-
-  const bars = g.selectAll("rect")
-    .data(data.values)
-    .enter()
-    .append("rect")
-    .attr("x", (_, i) => x(i))
-    .attr("y", d => y(d))
-    .attr("width", x.bandwidth())
-    .attr("height", d => innerH - y(d))
-    .attr("fill", "#1f77b4")
-    .attr("opacity", 0.85);
-
-  bars.each(function(_, i) {
-    if (!isTarget(i, data.targetIdx)) return;
-    const r = d3.select(this);
-    addHaloRectOutside(g, +r.attr("x"), +r.attr("y"), +r.attr("width"), +r.attr("height"), 2, 2);
-  });
-
-  g.append("line")
-    .attr("x1", 0).attr("x2", innerW)
-    .attr("y1", innerH).attr("y2", innerH)
-    .attr("stroke", "#bbb");
-}
-
-/* 2) Stacked bars */
-function drawStackedBars(svg, data) {
-  const W = BASE_W, H = BASE_H;
-  const margin = { top: 24, right: 24, bottom: 24, left: 24 };
-
-  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
-  const innerW = W - margin.left - margin.right;
-  const innerH = H - margin.top - margin.bottom;
-
-  const total = d3.sum(data.values);
-  const y = d3.scaleLinear().domain([0, total]).range([innerH, 0]);
-
-  const barX = innerW * 0.35;
-  const barW = innerW * 0.30;
-
-  const baseFill = "#ff7f0e";
-
-  let cum = 0;
-  data.values.forEach((v, i) => {
-    const y0 = y(cum);
-    const y1 = y(cum + v);
-    const h = Math.max(0, y0 - y1);
-
-    const isT = isTarget(i, data.targetIdx);
-    const fill = isT ? targetFillForIndex(i, data.targetIdx) : baseFill;
-
-    g.append("rect")
-      .attr("x", barX)
-      .attr("y", y1)
-      .attr("width", barW)
-      .attr("height", h)
-      .attr("fill", fill)
-      .attr("opacity", isT ? 0.95 : 0.80)
-      .attr("stroke", "#fff")
-      .attr("stroke-width", isT ? STACK_SEP_W_T : STACK_SEP_W);
-
-    if (isT) addHaloRectOutside(g, barX, y1, barW, h, 3, 3);
-
-    cum += v;
-  });
-}
-
-/* 3) Pie/Donut */
-function drawPie(svg, data, isDonut) {
-  const W = BASE_W, H = BASE_H;
-
-  const radius = Math.min(W, H) * 0.36;
-  const innerR = isDonut ? radius * 0.48 : 0;
-
-  const g = svg.append("g").attr("transform", `translate(${W/2},${H/2})`);
-
-  const pie = d3.pie().value(d => d).sort(null);
-  const arcs = pie(data.values);
-
-  const arc = d3.arc().innerRadius(innerR).outerRadius(radius);
-
-  g.selectAll("path.slice")
-    .data(arcs)
-    .enter()
-    .append("path")
-    .attr("class", "slice")
-    .attr("d", arc)
-    .attr("fill", (a, i) => {
-      const tf = targetFillForIndex(i, data.targetIdx);
-      return tf ? tf : d3.schemeCategory10[i % 10];
+  svg.selectAll(".dot").data(data).enter().append("circle")
+    .attr("cx", d => x(d.meanLog))
+    .attr("cy", d => y(d.label) + y.bandwidth()/2)
+    .attr("r", 7)
+    .attr("fill", d => d.category === "prior" ? colorPrior : colorNovel)
+    .attr("stroke", "#fff").attr("stroke-width", 2)
+    .style("cursor", "pointer")
+    .on("mouseover", (e, d) => {
+      tooltip.style("opacity", 1)
+        .html(`<strong>${d.label}</strong><br>Mean: ${d.meanLog.toFixed(2)}<br>95% CI: [${d.ciLow.toFixed(2)}, ${d.ciHigh.toFixed(2)}]`)
+        .style("left", (e.pageX + 12) + "px").style("top", (e.pageY - 10) + "px");
     })
-    .attr("opacity", (a, i) => isTarget(i, data.targetIdx) ? 0.98 : 0.92)
-    .attr("stroke", "#fff")
-    .attr("stroke-width", (a, i) => isTarget(i, data.targetIdx) ? PIE_SEP_W_T : PIE_SEP_W);
+    .on("mouseout", () => tooltip.style("opacity", 0));
 
-  arcs.forEach((a, i) => {
-    if (!isTarget(i, data.targetIdx)) return;
-    addHaloPath(g, arc(a));
-  });
-}
+  svg.selectAll(".val-label").data(data).enter().append("text")
+    .attr("x", d => x(d.ciHigh) + 8)
+    .attr("y", d => y(d.label) + y.bandwidth()/2 + 4)
+    .text(d => d.meanLog.toFixed(2))
+    .style("font-size", "12px").style("fill", "#6b6b6b").style("font-weight", "500");
 
-/* 4) Circle Area */
-function drawCircleArea(svg, data) {
-  const W = BASE_W, H = BASE_H;
 
-  const maxR = Math.min(W, H) * 0.11;
-  const r = d3.scaleSqrt().domain([0, d3.max(data.values)]).range([10, maxR]);
+})();
 
-  const radii = data.values.map(v => r(v));
+// ========== CHART 2: Abs Error Dot Plot ==========
+(function() {
+  const margin = {top: 10, right: 60, bottom: 50, left: 160};
+  const width = 860 - margin.left - margin.right;
+  const height = 340 - margin.top - margin.bottom;
 
-  const bounds = { x0: 70, y0: 70, x1: W-70, y1: H-70 };
-  const pts = placePointsRandom(data.values.length, bounds, radii, 18, 3000);
+  const svg = d3.select("#chart-rt").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
-  const g = svg.append("g");
+  const sorted = [...data].sort((a,b) => a.medRT - b.medRT);
+  const x = d3.scaleLinear().domain([0, 6000]).range([0, width]);
+  const y = d3.scaleBand().domain(sorted.map(d => d.label)).range([0, height]).padding(0.3);
 
-  g.selectAll("circle.mark")
-    .data(data.values)
-    .enter()
-    .append("circle")
-    .attr("class","mark")
-    .attr("cx", (_, i) => pts[i].x)
-    .attr("cy", (_, i) => pts[i].y)
-    .attr("r",  (_, i) => pts[i].r)
-    .attr("fill", "#2ca02c")
-    .attr("opacity", 0.55)
-    .each(function(_, i){
-      if (!isTarget(i, data.targetIdx)) return;
-      const c = d3.select(this);
-      addHaloCircleOutside(g, +c.attr("cx"), +c.attr("cy"), +c.attr("r"));
-    });
-}
+  svg.selectAll(".grid").data(x.ticks(6)).enter().append("line")
+    .attr("x1", d => x(d)).attr("x2", d => x(d))
+    .attr("y1", 0).attr("y2", height)
+    .attr("stroke", "#e5e5e5").attr("stroke-dasharray", "2,3");
 
-/* 5) Saturation */
-function drawSaturation(svg, data) {
-  const W = BASE_W, H = BASE_H;
-  const margin = { top: 44, right: 24, bottom: 44, left: 24 };
-  const innerW = W - margin.left - margin.right;
-  const innerH = H - margin.top - margin.bottom;
+  svg.append("g").attr("transform", `translate(0,${height})`)
+    .call(d3.axisBottom(x).ticks(6).tickFormat(d => d/1000 + "s"))
+    .selectAll("text").style("font-size", "12px");
 
-  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+  svg.append("text")
+    .attr("x", width/2).attr("y", height + 40)
+    .attr("text-anchor", "middle").style("font-size", "13px").style("fill", "#6b6b6b")
+    .text("Median Response Time (seconds)");
 
-  const x = d3.scaleBand().domain(d3.range(data.values.length)).range([0, innerW]).padding(0.2);
-  const a = d3.scaleLinear().domain([0, d3.max(data.values)]).range([0.25, 1.0]);
+  svg.append("g").call(d3.axisLeft(y).tickSize(0)).select(".domain").remove();
+  svg.selectAll(".tick text").style("font-size", "13px").style("font-weight", "500");
 
-  const rects = g.selectAll("rect")
-    .data(data.values)
-    .enter()
-    .append("rect")
-    .attr("x", (_, i) => x(i))
-    .attr("y", innerH * 0.25)
-    .attr("width", x.bandwidth())
-    .attr("height", innerH * 0.50)
-    .attr("fill", "#1f77b4")
-    .attr("opacity", d => a(d));
+  svg.selectAll(".bar").data(sorted).enter().append("rect")
+    .attr("x", 0)
+    .attr("y", d => y(d.label))
+    .attr("width", d => x(d.medRT))
+    .attr("height", y.bandwidth())
+    .attr("fill", d => d.category === "prior" ? colorPrior : colorNovel)
+    .attr("rx", 3)
+    .style("cursor", "pointer")
+    .on("mouseover", (e, d) => {
+      tooltip.style("opacity", 1)
+        .html(`<strong>${d.label}</strong><br>Median RT: ${d.medRT.toLocaleString()} ms`)
+        .style("left", (e.pageX + 12) + "px").style("top", (e.pageY - 10) + "px");
+    })
+    .on("mouseout", () => tooltip.style("opacity", 0));
 
-  rects.each(function(_, i){
-    if (!isTarget(i, data.targetIdx)) return;
-    const rct = d3.select(this);
-    addHaloRectOutside(g, +rct.attr("x"), +rct.attr("y"), +rct.attr("width"), +rct.attr("height"), 2, 2);
-  });
-}
+  svg.selectAll(".val-label").data(sorted).enter().append("text")
+    .attr("x", d => x(d.medRT) + 8)
+    .attr("y", d => y(d.label) + y.bandwidth()/2 + 4)
+    .text(d => (d.medRT/1000).toFixed(1) + "s")
+    .style("font-size", "12px").style("fill", "#6b6b6b").style("font-weight", "500");
+})();
 
-/* 6) Radial Bars */
-function drawRadialBars(svg, data) {
-  const W = BASE_W, H = BASE_H;
-  const g = svg.append("g").attr("transform", `translate(${W/2},${H/2})`);
+// ========== CHART 3: Comparison with prior studies ==========
+(function() {
+  // Simple grouped bar chart: for each overlapping viz type, show 3 bars side by side
+  // Our study (blue), CM84 (orange), HB10 (green)
+  // Only 4 viz types overlap: Aligned Bars, Stacked Bars, Pie Chart, Circle Area
 
-  const n = data.values.length;
-  const innerR = 38;
-  const outerR = Math.min(W, H) * 0.40;
+  const margin = {top: 20, right: 80, bottom: 60, left: 130};
+  const width = 860 - margin.left - margin.right;
+  const height = 280 - margin.top - margin.bottom;
 
-  const r = d3.scaleLinear().domain([0, d3.max(data.values)]).range([innerR, outerR]);
-  const angle = d3.scaleBand().domain(d3.range(n)).range([0, Math.PI * 2]).padding(0.08);
+  const svg = d3.select("#chart-comparison").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
-  [25, 50, 75, 100].forEach(v => {
-    g.append("circle").attr("r", r(v)).attr("fill", "none").attr("stroke", "#e3e3e3");
-  });
-
-  const arc = d3.arc();
-
-  const paths = g.selectAll("path.bar")
-    .data(data.values)
-    .enter()
-    .append("path")
-    .attr("class", "bar")
-    .attr("d", (d, i) => arc({
-      innerRadius: innerR,
-      outerRadius: r(d),
-      startAngle: angle(i),
-      endAngle: angle(i) + angle.bandwidth()
-    }))
-    .attr("fill", "#9467bd")
-    .attr("opacity", 0.9)
-    .attr("stroke", "#fff")
-    .attr("stroke-width", 1.4);
-
-  paths.each(function(_, i){
-    if (!isTarget(i, data.targetIdx)) return;
-    addHaloPath(g, d3.select(this).attr("d"));
-  });
-
-  g.append("circle").attr("r", 2.5).attr("fill", "#666");
-}
-
-/* 7) Star Area */
-function starPath(cx, cy, outerR, innerR, points = 5) {
-  let d = "";
-  const step = Math.PI / points;
-  for (let i = 0; i < 2 * points; i++) {
-    const rr = (i % 2 === 0) ? outerR : innerR;
-    const a = -Math.PI / 2 + i * step;
-    const x = cx + rr * Math.cos(a);
-    const y = cy + rr * Math.sin(a);
-    d += (i === 0 ? "M" : "L") + x + "," + y;
-  }
-  return d + "Z";
-}
-
-function drawStarArea(svg, data) {
-  const W = BASE_W, H = BASE_H;
-
-  const maxOuter = Math.min(W, H) * 0.12;
-  const r = d3.scaleSqrt().domain([0, d3.max(data.values)]).range([14, maxOuter]);
-
-  const radii = data.values.map(v => r(v));
-
-  const bounds = { x0: 70, y0: 70, x1: W-70, y1: H-70 };
-  const pts = placePointsRandom(data.values.length, bounds, radii, 26, 4000);
-
-  const g = svg.append("g");
-
-  data.values.forEach((v, i) => {
-    const cx = pts[i].x;
-    const cy = pts[i].y;
-
-    const outerR = r(v);
-    const innerR = outerR * 0.45;
-    const d = starPath(cx, cy, outerR, innerR, 5);
-
-    g.append("path")
-      .attr("d", d)
-      .attr("fill", "#17becf")
-      .attr("opacity", 0.65);
-
-    if (isTarget(i, data.targetIdx)) addHaloPath(g, d);
-  });
-}
-
-/* --------------------------- Draw dispatcher ------------------------ */
-
-function resetSliderGateForTrial() {
-  sliderMovedThisTrial = false;
-  sliderStartValueThisTrial = Math.floor(Math.random()*101);
-  slider.value = String(sliderStartValueThisTrial);
-  sliderValue.textContent = "—";
-  btnNext.disabled = REQUIRE_SLIDER_MOVE;
-  mustMoveNote.style.display = REQUIRE_SLIDER_MOVE ? "block" : "none";
-  fastWarn.style.display = "none";
-  saveOk.style.display = "none";
-}
-
-function renderTrial(trial, reuseExistingData=false) {
-  clearViz();
-
-  const viz = VIZ_TYPES.find(v => v.id === trial.vizId);
-
-  progressTag.textContent = `Trial ${trialIndex + 1} / ${trials.length}`;
-  blockTag.textContent = `Block ${trial.blockNumber} / ${VIZ_TYPES.length}`;
-  vizTag.textContent = viz ? viz.label : trial.vizId;
-
-  promptEl.textContent = getPromptForViz(trial.vizId);
-  hintText.textContent = getHintForViz(trial.vizId);
-
-  resetSliderGateForTrial();
-
-  const data = reuseExistingData && currentTrialData ? currentTrialData : makeTrialData(trial.groundTruthPct);
-  currentTrialData = data;
-
-  const svg = makeSvgResponsive();
-
-  switch (trial.vizId) {
-    case "alignedBars":  drawAlignedBars(svg, data); break;
-    case "stackedBars":  drawStackedBars(svg, data); break;
-    case "pie":          drawPie(svg, data, false); break;
-    case "donut":        drawPie(svg, data, true); break;
-    case "circleArea":   drawCircleArea(svg, data); break;
-    case "saturation":   drawSaturation(svg, data); break;
-    case "radialBars":   drawRadialBars(svg, data); break;
-    case "starArea":     drawStarArea(svg, data); break;
-    default:             drawAlignedBars(svg, data);
-  }
-
-  trialStartMs = Date.now();
-}
-
-/* --------------------------- Record result + advance ---------------- */
-
-function recordAndAdvance() {
-  const elapsedMs = Date.now() - trialStartMs;
-
-  if (elapsedMs < MIN_TRIAL_TIME_MS) {
-    fastWarn.style.display = "block";
-    return;
-  }
-
-  if (REQUIRE_SLIDER_MOVE && !sliderMovedThisTrial) {
-    mustMoveNote.style.display = "block";
-    return;
-  }
-
-  btnNext.disabled = true;
-
-  const trial = trials[trialIndex];
-  const responsePct = clampInt(slider.value, 0, 100);
-  const groundTruthPct = trial.groundTruthPct;
-
-  const viz = VIZ_TYPES.find(v => v.id === trial.vizId);
-
-  results.push({
-    participantId,
-    trialNumber: trialIndex + 1,
-    blockNumber: trial.blockNumber,
-    trialInBlock: trial.trialInBlock,
-    visualizationType: trial.vizId,
-    visualizationLabel: viz ? viz.label : trial.vizId,
-    groundTruthPct,
-    responsePct,
-    responseTimeMs: elapsedMs,
-    sliderStartValue: sliderStartValueThisTrial,
-    sliderMoved: sliderMovedThisTrial ? 1 : 0
-  });
-
-  trialIndex += 1;
-  currentTrialData = null;
-
-  if (trialIndex < trials.length) {
-    renderTrial(trials[trialIndex], false);
-  } else {
-    finishAndUpload();
-  }
-}
-
-/* --------------------------- Finish + upload to Google Sheet ---------------- */
-
-async function finishAndUpload(){
-  // Hide task UI immediately
-  screenTask.style.display = "none";
-  screenDone.style.display = "block";
-
-  // Post to sheet (best-effort)
-  await postRowsToSheet(results);
-}
-
-/* --------------------------- Download CSV (optional) --------------------------- */
-
-function downloadCSV() {
-  const headers = [
-    "participantId","trialNumber","blockNumber","trialInBlock",
-    "visualizationType","visualizationLabel",
-    "groundTruthPct","responsePct","responseTimeMs",
-    "sliderStartValue","sliderMoved"
+  // Data: each condition has up to 3 values
+  const groups = [
+    { label: "Aligned Bars", our: 1.90, cm84: 1.00, hb10: 1.15 },
+    { label: "Stacked Bars", our: 3.15, cm84: 2.70, hb10: 2.70 },
+    { label: "Pie Chart",    our: 2.96, cm84: 1.70, hb10: 2.25 },
+    { label: "Circle Area",  our: 3.74, cm84: null,  hb10: 2.87 }
   ];
 
-  const lines = [];
-  lines.push(headers.join(","));
+  const studies = ["our", "cm84", "hb10"];
+  const studyColors = { our: "#2563eb", cm84: "#f59e0b", hb10: "#10b981" };
+  const studyLabels = { our: "Our Study", cm84: "Cleveland & McGill (1984)", hb10: "Heer & Bostock (2010)" };
 
-  results.forEach(row => {
-    const values = headers.map(h => csvEscape(row[h]));
-    lines.push(values.join(","));
+  const x0 = d3.scaleBand().domain(groups.map(d => d.label)).range([0, width]).padding(0.25);
+  const x1 = d3.scaleBand().domain(studies).range([0, x0.bandwidth()]).padding(0.1);
+  const y = d3.scaleLinear().domain([0, 5]).range([height, 0]);
+
+  // Grid lines
+  svg.selectAll(".grid").data(y.ticks(5)).enter().append("line")
+    .attr("x1", 0).attr("x2", width)
+    .attr("y1", d => y(d)).attr("y2", d => y(d))
+    .attr("stroke", "#e5e5e5").attr("stroke-dasharray", "2,3");
+
+  // Axes
+  svg.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x0).tickSize(0))
+    .selectAll("text").style("font-size", "13px").style("font-weight", "500");
+  svg.select(".domain").remove();
+
+  svg.append("g").call(d3.axisLeft(y).ticks(5)).select(".domain").remove();
+
+  svg.append("text")
+    .attr("x", -height/2).attr("y", -40).attr("transform", "rotate(-90)")
+    .attr("text-anchor", "middle").style("font-size", "13px").style("fill", "#6b6b6b")
+    .text("Mean Log₂ Error");
+
+  // Bars
+  const grpSel = svg.selectAll(".grp").data(groups).enter().append("g")
+    .attr("transform", d => `translate(${x0(d.label)},0)`);
+
+  studies.forEach(study => {
+    grpSel.filter(d => d[study] !== null).append("rect")
+      .attr("x", x1(study))
+      .attr("y", d => y(d[study]))
+      .attr("width", x1.bandwidth())
+      .attr("height", d => height - y(d[study]))
+      .attr("fill", studyColors[study])
+      .attr("rx", 2)
+      .style("cursor", "pointer")
+      .on("mouseover", (e, d) => {
+        tooltip.style("opacity", 1)
+          .html(`<strong>${d.label}</strong><br>${studyLabels[study]}: ${d[study].toFixed(2)}`)
+          .style("left", (e.pageX + 12) + "px").style("top", (e.pageY - 10) + "px");
+      })
+      .on("mouseout", () => tooltip.style("opacity", 0));
   });
 
-  const csvText = lines.join("\n");
-  const blob = new Blob([csvText], { type: "text/csv;charset=utf-8" });
+  // Legend at bottom
+  const legendData = [
+    { key: "our", label: "Our Study" },
+    { key: "cm84", label: "Cleveland & McGill (1984)" },
+    { key: "hb10", label: "Heer & Bostock (2010)" }
+  ];
+  const leg = svg.append("g").attr("transform", `translate(0,${height + 40})`);
+  let lx = 0;
+  legendData.forEach(item => {
+    leg.append("rect").attr("x", lx).attr("y", 0).attr("width", 14).attr("height", 14)
+      .attr("fill", studyColors[item.key]).attr("rx", 2);
+    leg.append("text").attr("x", lx + 18).attr("y", 11)
+      .text(item.label).style("font-size", "12px");
+    lx += item.label.length * 7 + 30;
+  });
+})();
 
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `cs526_graphical_perception_${participantId}_${Date.now()}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
+// ========== STATS TABLE ==========
+(function() {
+  const tbody = d3.select("#stats-table tbody");
+  data.forEach(d => {
+    const cat = d.category === "prior" ? "Prior literature" : "Novel (ours)";
+    tbody.append("tr").html(`
+      <td><strong>${d.label}</strong></td>
+      <td>${cat}</td>
+      <td>${d.meanLog.toFixed(2)}</td>
+      <td>[${d.ciLow.toFixed(2)}, ${d.ciHigh.toFixed(2)}]</td>
+      <td>${d.medRT.toLocaleString()}</td>
+    `);
+  });
 
-/* --------------------------- Responsive redraw ---------------------- */
+})();
 
-function debounce(fn, wait=120){
-  let t = null;
-  return (...args) => {
-    clearTimeout(t);
-    t = setTimeout(() => fn(...args), wait);
-  };
-}
 
-const onResize = debounce(() => {
-  if (screenTask.style.display === "none") return;
-  if (!trials.length) return;
-  if (trialIndex >= trials.length) return;
-
-  renderTrial(trials[trialIndex], true);
-
-  slider.value = String(clampInt(slider.value,0,100));
-  if (sliderMovedThisTrial) {
-    sliderValue.textContent = `${slider.value}%`;
-    btnNext.disabled = false;
-    mustMoveNote.style.display = "none";
-  } else {
-    sliderValue.textContent = "—";
-    btnNext.disabled = REQUIRE_SLIDER_MOVE;
-    mustMoveNote.style.display = REQUIRE_SLIDER_MOVE ? "block" : "none";
-  }
-}, 150);
-
-window.addEventListener("resize", onResize);
-window.addEventListener("orientationchange", onResize);
-
-/* --------------------------- Wire UI events ------------------------- */
-
-slider.addEventListener("input", () => {
-  sliderMovedThisTrial = true;
-  sliderValue.textContent = `${slider.value}%`;
-  mustMoveNote.style.display = "none";
-  fastWarn.style.display = "none";
-  saveOk.style.display = "none";
-  btnNext.disabled = false;
-});
-
-btnStart.addEventListener("click", () => {
-  participantId = getUniqueParticipantId();
-
-  pidTag.style.display = "inline-block";
-  pidTag.textContent = `Participant: ${participantId}`;
-  pidTagTop.textContent = `Participant: ${participantId}`;
-
-  trials = buildTrials();
-  trialIndex = 0;
-  results = [];
-  currentTrialData = null;
-
-  screenStart.style.display = "none";
-  screenDone.style.display = "none";
-  screenTask.style.display = "block";
-
-  renderTrial(trials[trialIndex], false);
-});
-
-btnNext.addEventListener("click", recordAndAdvance);
-btnDownload.addEventListener("click", downloadCSV);
 </script>
 </body>
 </html>
